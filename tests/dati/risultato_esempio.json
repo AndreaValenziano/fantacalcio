@@ -1,0 +1,671 @@
+{
+ "giornata": 12,
+ "controllato_il": "2026-11-13T18:40:00+01:00",
+ "prima_partita": "2026-11-14T15:00:00+01:00",
+ "formazioni": {
+  "assoluta": {
+   "modulo": "3-4-3",
+   "titolari": [
+    {
+     "nome": "P04 Rossi",
+     "squadra": "COM",
+     "ruolo": "P",
+     "motivo": "Titolare annunciato",
+     "stato": "sicuro"
+    },
+    {
+     "nome": "D09 Rossi",
+     "squadra": "JUV",
+     "ruolo": "D",
+     "motivo": "Titolare annunciato",
+     "stato": "sicuro"
+    },
+    {
+     "nome": "D10 Rossi",
+     "squadra": "LAZ",
+     "ruolo": "D",
+     "motivo": "Titolare annunciato",
+     "stato": "sicuro"
+    },
+    {
+     "nome": "D11 Rossi",
+     "squadra": "LEC",
+     "ruolo": "D",
+     "motivo": "Titolare annunciato",
+     "stato": "sicuro"
+    },
+    {
+     "nome": "C09 Rossi",
+     "squadra": "JUV",
+     "ruolo": "C",
+     "motivo": "Titolare annunciato",
+     "stato": "sicuro"
+    },
+    {
+     "nome": "C10 Rossi",
+     "squadra": "LAZ",
+     "ruolo": "C",
+     "motivo": "Titolare annunciato",
+     "stato": "sicuro"
+    },
+    {
+     "nome": "C11 Rossi",
+     "squadra": "LEC",
+     "ruolo": "C",
+     "motivo": "Titolare annunciato",
+     "stato": "sicuro"
+    },
+    {
+     "nome": "C12 Rossi",
+     "squadra": "MIL",
+     "ruolo": "C",
+     "motivo": "Titolare annunciato",
+     "stato": "sicuro"
+    },
+    {
+     "nome": "A07 Rossi",
+     "squadra": "GEN",
+     "ruolo": "A",
+     "motivo": "Titolare annunciato",
+     "stato": "sicuro"
+    },
+    {
+     "nome": "A08 Rossi",
+     "squadra": "INT",
+     "ruolo": "A",
+     "motivo": "Titolare annunciato",
+     "stato": "sicuro"
+    },
+    {
+     "nome": "A09 Rossi",
+     "squadra": "JUV",
+     "ruolo": "A",
+     "motivo": "Titolare annunciato",
+     "stato": "sicuro"
+    }
+   ],
+   "panchina": [
+    {
+     "nome": "P05 Rossi",
+     "squadra": "CRE",
+     "ruolo": "P"
+    },
+    {
+     "nome": "P06 Rossi",
+     "squadra": "FIO",
+     "ruolo": "P"
+    },
+    {
+     "nome": "D12 Rossi",
+     "squadra": "MIL",
+     "ruolo": "D"
+    },
+    {
+     "nome": "D13 Rossi",
+     "squadra": "NAP",
+     "ruolo": "D"
+    },
+    {
+     "nome": "D14 Rossi",
+     "squadra": "PAR",
+     "ruolo": "D"
+    },
+    {
+     "nome": "C13 Rossi",
+     "squadra": "NAP",
+     "ruolo": "C"
+    },
+    {
+     "nome": "C14 Rossi",
+     "squadra": "PAR",
+     "ruolo": "C"
+    },
+    {
+     "nome": "C15 Rossi",
+     "squadra": "PIS",
+     "ruolo": "C"
+    },
+    {
+     "nome": "A10 Rossi",
+     "squadra": "LAZ",
+     "ruolo": "A"
+    },
+    {
+     "nome": "A11 Rossi",
+     "squadra": "LEC",
+     "ruolo": "A"
+    },
+    {
+     "nome": "A12 Rossi",
+     "squadra": "MIL",
+     "ruolo": "A"
+    },
+    {
+     "nome": "P07 Rossi",
+     "squadra": "GEN",
+     "ruolo": "P"
+    },
+    {
+     "nome": "P08 Rossi",
+     "squadra": "INT",
+     "ruolo": "P"
+    },
+    {
+     "nome": "P09 Rossi",
+     "squadra": "JUV",
+     "ruolo": "P"
+    }
+   ],
+   "capitano": null,
+   "vice": null,
+   "switch": null
+  },
+  "rosa": {
+   "modulo": "3-4-3",
+   "titolari": [
+    {
+     "nome": "P01 Rossi",
+     "squadra": "ATA",
+     "ruolo": "P",
+     "motivo": "Titolare annunciato",
+     "stato": "sicuro"
+    },
+    {
+     "nome": "D01 Rossi",
+     "squadra": "ATA",
+     "ruolo": "D",
+     "motivo": "Titolare annunciato",
+     "stato": "sicuro"
+    },
+    {
+     "nome": "D02 Rossi",
+     "squadra": "BOL",
+     "ruolo": "D",
+     "motivo": "Titolare annunciato",
+     "stato": "sicuro"
+    },
+    {
+     "nome": "D03 Rossi",
+     "squadra": "CAG",
+     "ruolo": "D",
+     "motivo": "Titolare annunciato",
+     "stato": "sicuro"
+    },
+    {
+     "nome": "C01 Rossi",
+     "squadra": "ATA",
+     "ruolo": "C",
+     "motivo": "Ballottaggio: ricontrolla prima della scadenza.",
+     "stato": "dubbio"
+    },
+    {
+     "nome": "C02 Rossi",
+     "squadra": "BOL",
+     "ruolo": "C",
+     "motivo": "Titolare annunciato",
+     "stato": "sicuro"
+    },
+    {
+     "nome": "C03 Rossi",
+     "squadra": "CAG",
+     "ruolo": "C",
+     "motivo": "Titolare annunciato",
+     "stato": "sicuro"
+    },
+    {
+     "nome": "C04 Rossi",
+     "squadra": "COM",
+     "ruolo": "C",
+     "motivo": "Titolare annunciato",
+     "stato": "sicuro"
+    },
+    {
+     "nome": "A01 Rossi",
+     "squadra": "ATA",
+     "ruolo": "A",
+     "motivo": "Titolare annunciato",
+     "stato": "sicuro"
+    },
+    {
+     "nome": "A02 Rossi",
+     "squadra": "BOL",
+     "ruolo": "A",
+     "motivo": "Titolare annunciato",
+     "stato": "sicuro"
+    },
+    {
+     "nome": "A03 Rossi",
+     "squadra": "CAG",
+     "ruolo": "A",
+     "motivo": "Titolare annunciato",
+     "stato": "sicuro"
+    }
+   ],
+   "panchina": [
+    {
+     "nome": "P02 Rossi",
+     "squadra": "BOL",
+     "ruolo": "P"
+    },
+    {
+     "nome": "P03 Rossi",
+     "squadra": "CAG",
+     "ruolo": "P"
+    },
+    {
+     "nome": "D04 Rossi",
+     "squadra": "COM",
+     "ruolo": "D"
+    },
+    {
+     "nome": "D05 Rossi",
+     "squadra": "CRE",
+     "ruolo": "D"
+    },
+    {
+     "nome": "D06 Rossi",
+     "squadra": "FIO",
+     "ruolo": "D"
+    },
+    {
+     "nome": "C05 Rossi",
+     "squadra": "CRE",
+     "ruolo": "C"
+    },
+    {
+     "nome": "C06 Rossi",
+     "squadra": "FIO",
+     "ruolo": "C"
+    },
+    {
+     "nome": "C07 Rossi",
+     "squadra": "GEN",
+     "ruolo": "C"
+    },
+    {
+     "nome": "A04 Rossi",
+     "squadra": "COM",
+     "ruolo": "A"
+    },
+    {
+     "nome": "A05 Rossi",
+     "squadra": "CRE",
+     "ruolo": "A"
+    },
+    {
+     "nome": "A06 Rossi",
+     "squadra": "FIO",
+     "ruolo": "A"
+    },
+    {
+     "nome": "D07 Rossi",
+     "squadra": "GEN",
+     "ruolo": "D"
+    },
+    {
+     "nome": "D08 Rossi",
+     "squadra": "INT",
+     "ruolo": "D"
+    },
+    {
+     "nome": "C08 Rossi",
+     "squadra": "INT",
+     "ruolo": "C"
+    }
+   ],
+   "capitano": null,
+   "vice": null,
+   "switch": {
+    "titolare": "C01 Rossi",
+    "riserva": "C05 Rossi"
+   }
+  }
+ },
+ "schede": [
+  {
+   "nome": "P04 Rossi",
+   "squadra": "COM",
+   "disponibilita": "disponibile",
+   "titolarita": "titolare",
+   "forma": "buona",
+   "rigori_piazzati": "",
+   "avversario": "",
+   "riassunto": "Titolare nelle probabili.",
+   "link": [
+    "https://www.fantacalcio.it/probabili-formazioni-serie-a"
+   ],
+   "confidenza": 2,
+   "fonti_in_disaccordo": false
+  },
+  {
+   "nome": "D09 Rossi",
+   "squadra": "JUV",
+   "disponibilita": "disponibile",
+   "titolarita": "titolare",
+   "forma": "buona",
+   "rigori_piazzati": "",
+   "avversario": "",
+   "riassunto": "Titolare nelle probabili.",
+   "link": [
+    "https://www.fantacalcio.it/probabili-formazioni-serie-a"
+   ],
+   "confidenza": 2,
+   "fonti_in_disaccordo": false
+  },
+  {
+   "nome": "D10 Rossi",
+   "squadra": "LAZ",
+   "disponibilita": "disponibile",
+   "titolarita": "titolare",
+   "forma": "buona",
+   "rigori_piazzati": "",
+   "avversario": "",
+   "riassunto": "Titolare nelle probabili.",
+   "link": [
+    "https://www.fantacalcio.it/probabili-formazioni-serie-a"
+   ],
+   "confidenza": 2,
+   "fonti_in_disaccordo": false
+  },
+  {
+   "nome": "D11 Rossi",
+   "squadra": "LEC",
+   "disponibilita": "disponibile",
+   "titolarita": "titolare",
+   "forma": "buona",
+   "rigori_piazzati": "",
+   "avversario": "",
+   "riassunto": "Titolare nelle probabili.",
+   "link": [
+    "https://www.fantacalcio.it/probabili-formazioni-serie-a"
+   ],
+   "confidenza": 2,
+   "fonti_in_disaccordo": false
+  },
+  {
+   "nome": "C09 Rossi",
+   "squadra": "JUV",
+   "disponibilita": "disponibile",
+   "titolarita": "titolare",
+   "forma": "buona",
+   "rigori_piazzati": "",
+   "avversario": "",
+   "riassunto": "Titolare nelle probabili.",
+   "link": [
+    "https://www.fantacalcio.it/probabili-formazioni-serie-a"
+   ],
+   "confidenza": 2,
+   "fonti_in_disaccordo": false
+  },
+  {
+   "nome": "C10 Rossi",
+   "squadra": "LAZ",
+   "disponibilita": "disponibile",
+   "titolarita": "titolare",
+   "forma": "buona",
+   "rigori_piazzati": "",
+   "avversario": "",
+   "riassunto": "Titolare nelle probabili.",
+   "link": [
+    "https://www.fantacalcio.it/probabili-formazioni-serie-a"
+   ],
+   "confidenza": 2,
+   "fonti_in_disaccordo": false
+  },
+  {
+   "nome": "C11 Rossi",
+   "squadra": "LEC",
+   "disponibilita": "disponibile",
+   "titolarita": "titolare",
+   "forma": "buona",
+   "rigori_piazzati": "",
+   "avversario": "",
+   "riassunto": "Titolare nelle probabili.",
+   "link": [
+    "https://www.fantacalcio.it/probabili-formazioni-serie-a"
+   ],
+   "confidenza": 2,
+   "fonti_in_disaccordo": false
+  },
+  {
+   "nome": "C12 Rossi",
+   "squadra": "MIL",
+   "disponibilita": "disponibile",
+   "titolarita": "titolare",
+   "forma": "buona",
+   "rigori_piazzati": "",
+   "avversario": "",
+   "riassunto": "Titolare nelle probabili.",
+   "link": [
+    "https://www.fantacalcio.it/probabili-formazioni-serie-a"
+   ],
+   "confidenza": 2,
+   "fonti_in_disaccordo": false
+  },
+  {
+   "nome": "A07 Rossi",
+   "squadra": "GEN",
+   "disponibilita": "disponibile",
+   "titolarita": "titolare",
+   "forma": "buona",
+   "rigori_piazzati": "",
+   "avversario": "",
+   "riassunto": "Titolare nelle probabili.",
+   "link": [
+    "https://www.fantacalcio.it/probabili-formazioni-serie-a"
+   ],
+   "confidenza": 2,
+   "fonti_in_disaccordo": false
+  },
+  {
+   "nome": "A08 Rossi",
+   "squadra": "INT",
+   "disponibilita": "disponibile",
+   "titolarita": "titolare",
+   "forma": "buona",
+   "rigori_piazzati": "",
+   "avversario": "",
+   "riassunto": "Titolare nelle probabili.",
+   "link": [
+    "https://www.fantacalcio.it/probabili-formazioni-serie-a"
+   ],
+   "confidenza": 2,
+   "fonti_in_disaccordo": false
+  },
+  {
+   "nome": "A09 Rossi",
+   "squadra": "JUV",
+   "disponibilita": "disponibile",
+   "titolarita": "titolare",
+   "forma": "buona",
+   "rigori_piazzati": "",
+   "avversario": "",
+   "riassunto": "Titolare nelle probabili.",
+   "link": [
+    "https://www.fantacalcio.it/probabili-formazioni-serie-a"
+   ],
+   "confidenza": 2,
+   "fonti_in_disaccordo": false
+  },
+  {
+   "nome": "P01 Rossi",
+   "squadra": "ATA",
+   "disponibilita": "disponibile",
+   "titolarita": "titolare",
+   "forma": "buona",
+   "rigori_piazzati": "",
+   "avversario": "",
+   "riassunto": "Titolare nelle probabili.",
+   "link": [
+    "https://www.fantacalcio.it/probabili-formazioni-serie-a"
+   ],
+   "confidenza": 2,
+   "fonti_in_disaccordo": false
+  },
+  {
+   "nome": "D01 Rossi",
+   "squadra": "ATA",
+   "disponibilita": "disponibile",
+   "titolarita": "titolare",
+   "forma": "buona",
+   "rigori_piazzati": "",
+   "avversario": "",
+   "riassunto": "Titolare nelle probabili.",
+   "link": [
+    "https://www.fantacalcio.it/probabili-formazioni-serie-a"
+   ],
+   "confidenza": 2,
+   "fonti_in_disaccordo": false
+  },
+  {
+   "nome": "D02 Rossi",
+   "squadra": "BOL",
+   "disponibilita": "disponibile",
+   "titolarita": "titolare",
+   "forma": "buona",
+   "rigori_piazzati": "",
+   "avversario": "",
+   "riassunto": "Titolare nelle probabili.",
+   "link": [
+    "https://www.fantacalcio.it/probabili-formazioni-serie-a"
+   ],
+   "confidenza": 2,
+   "fonti_in_disaccordo": false
+  },
+  {
+   "nome": "D03 Rossi",
+   "squadra": "CAG",
+   "disponibilita": "disponibile",
+   "titolarita": "titolare",
+   "forma": "buona",
+   "rigori_piazzati": "",
+   "avversario": "",
+   "riassunto": "Titolare nelle probabili.",
+   "link": [
+    "https://www.fantacalcio.it/probabili-formazioni-serie-a"
+   ],
+   "confidenza": 2,
+   "fonti_in_disaccordo": false
+  },
+  {
+   "nome": "C01 Rossi",
+   "squadra": "ATA",
+   "disponibilita": "disponibile",
+   "titolarita": "titolare",
+   "forma": "buona",
+   "rigori_piazzati": "",
+   "avversario": "",
+   "riassunto": "<img src=x onerror=alert(1)>",
+   "link": [
+    "https://www.fantacalcio.it/probabili-formazioni-serie-a",
+    "https://www.example.com/notizia"
+   ],
+   "confidenza": 2,
+   "fonti_in_disaccordo": true
+  },
+  {
+   "nome": "C02 Rossi",
+   "squadra": "BOL",
+   "disponibilita": "disponibile",
+   "titolarita": "titolare",
+   "forma": "buona",
+   "rigori_piazzati": "",
+   "avversario": "",
+   "riassunto": "Titolare nelle probabili.",
+   "link": [
+    "https://www.fantacalcio.it/probabili-formazioni-serie-a"
+   ],
+   "confidenza": 2,
+   "fonti_in_disaccordo": false
+  },
+  {
+   "nome": "C03 Rossi",
+   "squadra": "CAG",
+   "disponibilita": "disponibile",
+   "titolarita": "titolare",
+   "forma": "buona",
+   "rigori_piazzati": "",
+   "avversario": "",
+   "riassunto": "Titolare nelle probabili.",
+   "link": [
+    "https://www.fantacalcio.it/probabili-formazioni-serie-a"
+   ],
+   "confidenza": 2,
+   "fonti_in_disaccordo": false
+  },
+  {
+   "nome": "C04 Rossi",
+   "squadra": "COM",
+   "disponibilita": "disponibile",
+   "titolarita": "titolare",
+   "forma": "buona",
+   "rigori_piazzati": "",
+   "avversario": "",
+   "riassunto": "Titolare nelle probabili.",
+   "link": [
+    "https://www.fantacalcio.it/probabili-formazioni-serie-a"
+   ],
+   "confidenza": 2,
+   "fonti_in_disaccordo": false
+  },
+  {
+   "nome": "A01 Rossi",
+   "squadra": "ATA",
+   "disponibilita": "disponibile",
+   "titolarita": "titolare",
+   "forma": "buona",
+   "rigori_piazzati": "",
+   "avversario": "",
+   "riassunto": "Titolare nelle probabili.",
+   "link": [
+    "https://www.fantacalcio.it/probabili-formazioni-serie-a"
+   ],
+   "confidenza": 2,
+   "fonti_in_disaccordo": false
+  },
+  {
+   "nome": "A02 Rossi",
+   "squadra": "BOL",
+   "disponibilita": "disponibile",
+   "titolarita": "titolare",
+   "forma": "buona",
+   "rigori_piazzati": "",
+   "avversario": "",
+   "riassunto": "Titolare nelle probabili.",
+   "link": [
+    "https://www.fantacalcio.it/probabili-formazioni-serie-a"
+   ],
+   "confidenza": 2,
+   "fonti_in_disaccordo": false
+  },
+  {
+   "nome": "A03 Rossi",
+   "squadra": "CAG",
+   "disponibilita": "disponibile",
+   "titolarita": "titolare",
+   "forma": "buona",
+   "rigori_piazzati": "",
+   "avversario": "",
+   "riassunto": "Titolare nelle probabili.",
+   "link": [
+    "https://www.fantacalcio.it/probabili-formazioni-serie-a"
+   ],
+   "confidenza": 2,
+   "fonti_in_disaccordo": false
+  }
+ ],
+ "esclusi": [
+  {
+   "nome": "C08 Rossi",
+   "motivo": "squalificato"
+  },
+  {
+   "nome": "A06 Rossi",
+   "motivo": "<b>infortunato</b>"
+  }
+ ],
+ "differenza_piu_grande": "A13 Rossi al posto di A01 Rossi: batte i rigori.",
+ "fonti_non_lette": [
+  "https://www.esempio-bloccato.it/probabili"
+ ]
+}

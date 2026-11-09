@@ -4,3 +4,4 @@
 regole/
 __pycache__/
 tests/dati/listone_vero.xlsx
+.claude/launch.json
