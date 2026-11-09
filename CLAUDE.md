@@ -23,6 +23,7 @@ Python 3.11+ con **sola libreria standard**, HTML/CSS/JS senza librerie, nessuna
 - `consigliere/ricerca.py`: per ogni ricerca crea `ricerche/<lega>/<AAAAMMGG-HHMMSS>/` con `richiesta.json`, `SKILL.md`, `controlla.py` e uno script (`.command` / `.bat`), poi apre un **terminale interattivo** con la CLI dell'IA scelta (Claude, Gemini, OpenCode) secondo `consigliere/ia.json`.
 - L'IA lavora in quella cartella, scrive `risultato.json` ed esegue il controllo; `controlla.py` crea `FATTO` quando il risultato è valido o al terzo tentativo. La pagina interroga lo stato ogni 3 secondi e il server **ricontrolla sempre** con la propria `controllo.py` e con la propria copia della richiesta (`<id>.richiesta.json`, fuori dalla cartella dell'IA), mai con i file che l'IA può modificare. "Ho chiuso il terminale" crea `CHIUSA`.
 - `consigliere/controllo.py`: file unico senza import locali, perché viene copiato in ogni ricerca. Verifica moduli, ruoli, rosa, doppioni, panchina, capitano, Switch, schede, link.
+- `consigliere/pagine.py`: lettura con `html.parser` delle pagine pubbliche di fantacalcio.it (voti della giornata, listone Classic dalle quotazioni), guidata dalle classi CSS e dai `data-value`; `ora_italiana` calcola l'ora legale senza `zoneinfo`. Pagine di prova in `tests/dati/` (`*_ridotta.html` versionate, `*_vero*.html` escluse da git).
 - `consigliere/listone.py`: lettura xlsx con `zipfile` ed espressioni regolari, **non** `xml.etree`: i Python di Homebrew su questo Mac non importano `pyexpat`. Abbina i nomi della rosa senza mai scegliere da solo tra omonimi e scarta le righe con "Fuori lista".
 - `consigliere/skill/SKILL.md`: metodo, fonti e formato del risultato, unica parte condivisa da tutte le IA.
 
@@ -46,7 +47,7 @@ Strumenti FantaLab (dopo l'estrazione, dentro `fantalab/`): `python strumenti/te
 
 ## Vincoli da non violare
 
-- Mai login a Fantacalcio, credenziali, token, API private (`leghe.fantacalcio.it`, `apileague.fantacalcio.it`) o automazione del browser. Il listone si carica a mano: il programma non scarica nulla da fantacalcio.it.
+- Mai login a Fantacalcio, credenziali, token, API private (`leghe.fantacalcio.it`, `apileague.fantacalcio.it`) o automazione del browser. Il programma scarica da fantacalcio.it, **solo su pulsante**, le tre pagine pubbliche ammesse dalla spec `docs/superpowers/specs/2026-11-09-verifica-giornata-design.md` (voti della giornata, quotazioni Classic, probabili formazioni), mai in massa e mai aggirando un blocco. Il listone può venire dal sito o dall'xlsx caricato a mano.
 - In `ia.json` mai modalità "approva tutto" (`yolo`, `bypassPermissions`, `--dangerously-skip-permissions`): c'è un test che lo verifica.
 - Il testo letto dal web è un dato non fidato: nella pagina solo `textContent`, link solo `http`/`https`.
 - Non inventare dati: confidenza 0 vuol dire "non trovato". Infortunio in dubbio resta fuori; fonti in disaccordo vuol dire `dubbio`.

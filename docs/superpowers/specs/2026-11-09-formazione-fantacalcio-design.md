@@ -33,6 +33,7 @@ Il progetto FantaLab 1.2 contiene già regole, metodo e calcoli a giornata finit
 
 - **Accedere a una lega.** Niente login a Fantacalcio, credenziali, token, API private (`leghe.fantacalcio.it`, `apileague.fantacalcio.it`) o automazione del browser. *(tua scelta)*
 - Scaricare in massa pagine di fantacalcio.it o aggirare un blocco.
+  *(Aggiornato: la spec `2026-11-09-verifica-giornata-design.md` ammette il download su pulsante delle sole tre pagine pubbliche indicate lì, mai in massa e mai aggirando un blocco.)*
 - Inventare un dato: se una fonte non è leggibile, il risultato lo dice.
 - Consegnare una formazione che viola moduli, ruoli o rosa.
 - Dare per sicuro un giocatore su cui le fonti non concordano: va segnato come dubbio e, se l'infortunio è in dubbio, resta fuori.
@@ -42,6 +43,8 @@ Il progetto FantaLab 1.2 contiene già regole, metodo e calcoli a giornata finit
 Si possono leggere le **pagine pubbliche di fantacalcio.it**, senza login: voti *(tua scelta)*; probabili formazioni *(ipotesi di Claude, che Andrea non ha contestato)*. Per il resto si usano siti di club e testate sportive.
 
 Il **listone** con i ruoli Classic non viene letto in automatico: la persona lo scarica a mano e lo carica nello strumento, una volta e poi quando cambia. *(tua scelta)*
+
+*(Aggiornato: il listone può anche venire letto dal sito, su pulsante, oltre che dall'xlsx caricato a mano; vedi `2026-11-09-verifica-giornata-design.md`.)*
 
 Si legge solo quando qualcuno preme il pulsante, e solo le pagine necessarie.
 

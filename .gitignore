@@ -6,3 +6,5 @@ __pycache__/
 tests/dati/listone_vero.xlsx
 .claude/launch.json
 consigliere-formazione.zip
+tests/dati/voti_vero_*.html
+tests/dati/quotazioni_vero.html
