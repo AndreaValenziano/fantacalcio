@@ -238,11 +238,14 @@ def completezza(voti: dict) -> list[str]:
     if n < SQUADRE_ATTESE:
         mancanze.append(f"mancano {SQUADRE_ATTESE - n} squadre")
     per_squadra: dict[str, int] = {}
-    for g in voti["giocatori"]:
-        per_squadra[g["squadra"]] = per_squadra.get(g["squadra"], 0) + 1
+    for g in voti["giocatori"]:  # solo chi ha un voto: una squadra tutta SV non ha giocato
+        if g.get("voto") is not None:
+            per_squadra[g["squadra"]] = per_squadra.get(g["squadra"], 0) + 1
     for nome, info in voti["squadre"].items():
         k = per_squadra.get(nome, 0)
-        if k < GIOCATORI_MINIMI_SQUADRA:
+        if k == 0:
+            mancanze.append(f"{nome}: nessun voto, partita non giocata o rinviata")
+        elif k < GIOCATORI_MINIMI_SQUADRA:
             mancanze.append(f"{nome}: solo {k} giocatori con voto")
         if info.get("data") is None:
             mancanze.append(f"{nome}: data della partita non riconosciuta")

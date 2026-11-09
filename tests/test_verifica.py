@@ -30,7 +30,8 @@ def giocatore(id_, nome, squadra, ruolo, voto):
 
 
 def voti_prova(squadre=SQUADRE) -> dict:
-    """Pagina dei voti sintetica: i giocatori del listone di prova, più comparse SV per arrivare a 11 a squadra."""
+    """Pagina dei voti sintetica: i giocatori del listone di prova, più comparse a voto basso (4) per arrivare
+    ad almeno 11 giocatori con voto a squadra."""
     giocatori = []
     for i, g in enumerate(listone_prova()):
         if g["squadra"] in squadre:
@@ -38,7 +39,7 @@ def voti_prova(squadre=SQUADRE) -> dict:
             giocatori.append(giocatore(str(1000 + i), g["nome"], NOMI[g["squadra"]], g["ruolo"], voto))
     for s in squadre:
         for k in range(8):
-            giocatori.append(giocatore(f"9{SQUADRE.index(s):02d}{k}", f"Comparsa {k}", NOMI[s], "C", None))
+            giocatori.append(giocatore(f"9{SQUADRE.index(s):02d}{k}", f"Comparsa {k}", NOMI[s], "C", 4.0))
     date = {s: ("2026-11-14T12:30:00+01:00" if s == "ROM" else "2026-11-14T15:00:00+01:00") for s in squadre}
     return {"stagione": "2026-27", "giornata": 11, "mancanze": [], "giocatori": giocatori,
             "squadre": {NOMI[s]: {"slug": NOMI[s].lower().replace(" ", "-"), "data": date[s]} for s in squadre}}

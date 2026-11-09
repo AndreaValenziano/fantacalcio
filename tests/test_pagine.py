@@ -79,6 +79,17 @@ class TestVoti(unittest.TestCase):
         mancanze = completezza(self.voti)
         self.assertTrue(any("Hellas Verona" in m for m in mancanze), mancanze)
 
+    def test_completezza_conta_solo_i_voti(self):
+        # una squadra tutta SV (partita rinviata) non è completa solo perché ha righe nella pagina
+        squadre = [f"Squadra {i}" for i in range(20)]
+        giocatori = [{"squadra": s, "voto": 6.0} for s in squadre[2:] for _ in range(12)]
+        giocatori += [{"squadra": squadre[0], "voto": None} for _ in range(14)]
+        giocatori += [{"squadra": squadre[1], "voto": 6.0 if k < 5 else None} for k in range(14)]
+        voti = {"stagione": "2026-27", "giornata": 11, "mancanze": [], "giocatori": giocatori,
+                "squadre": {s: {"slug": "x", "data": "2026-11-14T15:00:00+01:00"} for s in squadre}}
+        self.assertEqual(completezza(voti), ["Squadra 0: nessun voto, partita non giocata o rinviata",
+                                             "Squadra 1: solo 5 giocatori con voto"])
+
     def test_pagina_sbagliata(self):
         with self.assertRaises(PaginaNonValida):
             leggi_voti("<html><body><p>niente</p></body></html>")
@@ -104,6 +115,9 @@ class TestPagineVere(unittest.TestCase):
         self.assertEqual(len(voti["squadre"]), 20)
         self.assertGreaterEqual(len(voti["giocatori"]), 300)
         self.assertEqual(completezza(voti), [])
+        g10 = DATI / "voti_vero_2026-27_10.html"
+        if g10.exists():
+            self.assertEqual(completezza(leggi_voti(g10.read_text(encoding="utf-8"))), [])
         ids = [g["id"] for g in voti["giocatori"]]
         self.assertEqual(len(ids), len(set(ids)))
         self.assertGreaterEqual(len(leggi_listone(QUOTAZIONI_VERE.read_text(encoding="utf-8"))), 500)
