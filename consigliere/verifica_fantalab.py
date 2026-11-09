@@ -137,6 +137,24 @@ def _controlla_previsione(prev) -> None:
             raise ValueError(f"'{k}' deve essere un nome")
 
 
+class _DentroFantalab(Exception):
+    pass
+
+
+def _guardia(fl: Path, *percorsi: Path) -> None:
+    """Rifiuta se un percorso, risolto (collegamenti simbolici degli antenati compresi), cade in fantalab."""
+    for p in percorsi:
+        r = Path(p).resolve()
+        if r == fl or fl in r.parents:
+            raise _DentroFantalab(f"Non si scrive mai dentro la cartella fantalab: {p} ci porta dentro.")
+
+
+def _scritture(a, base: Path, abbinamenti: Path) -> tuple:
+    """Cartelle finali in cui questa esecuzione puo' scrivere."""
+    return (base, fonti._cartella(base, "voti", f"{STAGIONE}-{a.giornata}"), abbinamenti.parent,
+            verifica._cartella_giornata(base, LEGA_ID, STAGIONE, a.giornata))
+
+
 def _lega() -> dict:
     modello = json.loads((MODELLI / "libera.json").read_text(encoding="utf-8"))
     return modello | {"id": LEGA_ID, "nome": "FantaLab"}
@@ -150,11 +168,11 @@ def main(argv=None, *, input_fn=input, scaricatore=None, out=print) -> int:
     a = p.parse_args(argv)
     fl, base = a.fantalab.resolve(), a.cartella.resolve()
     abbinamenti = base / "abbinamenti" / "fantalab.json"
-    for bersaglio in (base, base / "fonti", base / "verifiche", abbinamenti):
-        r = bersaglio.resolve()  # segue i collegamenti simbolici
-        if r == fl or fl in r.parents:
-            out(f"Non si scrive mai dentro la cartella fantalab: {bersaglio} ci porta dentro.")
-            return 2
+    try:
+        _guardia(fl, *_scritture(a, base, abbinamenti))
+    except _DentroFantalab as e:
+        out(str(e))
+        return 2
     giorn = fl / "stagioni" / STAGIONE / f"G{a.giornata:02d}"
     prev_file, bench_file = giorn / "previsione_macchina.json", giorn / "BENCHMARK_PROVVISORIO.md"
     if not prev_file.is_file() and not bench_file.is_file():
@@ -162,6 +180,9 @@ def main(argv=None, *, input_fn=input, scaricatore=None, out=print) -> int:
         return 2
     try:
         return _esegui(a, fl, base, abbinamenti, input_fn, scaricatore, out)
+    except _DentroFantalab as e:
+        out(str(e))
+        return 2
     except EOFError:
         out("Input terminato: risposta non data. Riprova da un terminale interattivo.")
         return 1
@@ -170,6 +191,7 @@ def main(argv=None, *, input_fn=input, scaricatore=None, out=print) -> int:
 def _esegui(a, fl, base, abbinamenti, input_fn, scaricatore, out) -> int:
     giorn = fl / "stagioni" / STAGIONE / f"G{a.giornata:02d}"
     prev_file, bench_file = giorn / "previsione_macchina.json", giorn / "BENCHMARK_PROVVISORIO.md"
+    _guardia(fl, *_scritture(a, base, abbinamenti))  # subito prima di un eventuale scaricamento
     try:
         voti, meta = _voti(base, a.giornata, input_fn, scaricatore, out)
     except SystemExit as e:
@@ -191,6 +213,7 @@ def _esegui(a, fl, base, abbinamenti, input_fn, scaricatore, out) -> int:
             return 1
         slugs = [s for k in ("titolari", "panchina") for r in _RUOLI for s in (prev.get(k) or {}).get(r, [])]
         slugs += [prev.get("capitano"), prev.get("vicecapitano")]
+        _guardia(fl, abbinamenti.parent)
         abb = risolvi([s for s in slugs if s], voti, abbinamenti, input_fn, out)
         f = formazione_fantalab(prev, abb, {x["id"]: x for x in listone})
         consigliata = {"scelta": {"ricerca": f"FantaLab G{a.giornata:02d} previsione_macchina.json",
@@ -209,6 +232,7 @@ def _esegui(a, fl, base, abbinamenti, input_fn, scaricatore, out) -> int:
         extra += [f"- {r}" for r in righe] + ["", _confronto(pa["totale"] if pa else None, dichiarato)]
         dati["benchmark"] = {"dichiarato": dichiarato, "undici": righe}
     dati["sezioni_extra"] = extra
+    _guardia(fl, verifica._cartella_giornata(base, LEGA_ID, STAGIONE, a.giornata))
     cartella = verifica.salva(base, LEGA_ID, STAGIONE, a.giornata, dati)
     out(f"Verifica salvata in {cartella} (stato {dati['stato']}).")
     return 0

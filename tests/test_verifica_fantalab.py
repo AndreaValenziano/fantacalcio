@@ -176,6 +176,19 @@ class TestCli(unittest.TestCase):
                 self.assertEqual(self.lancia(base), 2)
                 self.assertEqual(prima, self.impronte())
 
+    def test_collegamenti_profondi_rifiutati(self):
+        livelli = ["fonti/voti", "fonti/voti/2026-27-11", "verifiche/fantalab", "verifiche/fantalab/2026-27",
+                   "verifiche/fantalab/2026-27/G11", "abbinamenti/fantalab.json"]
+        for k, livello in enumerate(livelli):
+            with self.subTest(livello):
+                base = self.dir / f"p{k}"
+                collegamento = base / livello
+                collegamento.parent.mkdir(parents=True)
+                collegamento.symlink_to(self.fl, target_is_directory=True)
+                prima = self.impronte()
+                self.assertEqual(self.lancia(base), 2)
+                self.assertEqual(prima, self.impronte())
+
     def test_input_terminato(self):
         def eof(t=""):
             raise EOFError
