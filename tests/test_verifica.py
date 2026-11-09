@@ -101,6 +101,15 @@ class TestConsigliata(unittest.TestCase):
         self.assertIsNone(c["scelta"])
         self.assertEqual(c["dopo_scadenza"], [])
 
+    def test_consigliata_troppo_vecchia_ignorata(self):
+        # stessa giornata ma più di 14 giorni prima della scadenza (per esempio la stagione precedente): non vale
+        self.ricerca(risultato_11("grossa"), datetime(ANNO - 1, 11, 13, 18, 0, tzinfo=FUSO))
+        self.ricerca(risultato_11("grossa"), datetime(ANNO, 10, 30, 12, 0, tzinfo=FUSO))
+        c = verifica.consigliata(self.base, "grossa", 11, SCADENZA_FUTURA)
+        self.assertIsNone(c["scelta"])
+        dentro = self.ricerca(risultato_11("grossa"), datetime(ANNO, 11, 1, 12, 30, tzinfo=FUSO))
+        self.assertEqual(verifica.consigliata(self.base, "grossa", 11, SCADENZA_FUTURA)["scelta"]["ricerca"], dentro.name)
+
     def test_consigliata_senza_scadenza_nessuna_scelta(self):
         self.ricerca(risultato_11("grossa"), datetime(ANNO, 11, 13, 18, 0, tzinfo=FUSO))
         c = verifica.consigliata(self.base, "grossa", 11, None)
@@ -154,9 +163,9 @@ class TestConsigliata(unittest.TestCase):
         self.assertEqual(esito["dopo_scadenza"], [c.name])
 
     def test_sigillo_tardivo(self):
-        # conclusa (secondo i file) nel 2020, sigillata adesso: dopo la scadenza del 2021
+        # conclusa (secondo i file) nel 2020, sigillata adesso: dopo la scadenza del giorno dopo
         c = self.ricerca(risultato_11("grossa"), datetime(2020, 11, 13, 18, 0, tzinfo=FUSO))
-        scelta = verifica.consigliata(self.base, "grossa", 11, "2021-01-01T00:00:00+01:00")
+        scelta = verifica.consigliata(self.base, "grossa", 11, "2020-11-14T12:15:00+01:00")
         self.assertEqual((scelta["scelta"]["ricerca"], scelta["scelta"]["sigillo"]), (c.name, "tardivo"))
         dati = verifica.calcola(lega_prova("grossa"), voti_prova(), listone_prova(), scelta, None)
         self.assertEqual(dati["stato"], "PROVVISORIO")

@@ -20,6 +20,9 @@ _STAGIONE = re.compile(r"^\d{4}-\d{2}$")
 _VERSIONE_DIR = re.compile(r"^v(\d+)$")
 _SCHIERATA = re.compile(r"^schierata-v(\d+)\.json$")
 _EPS = 1e-9
+# Una ricerca vale per la giornata solo se conclusa nei 14 giorni prima della scadenza: il numero della
+# giornata da solo non basta, perché si ripete ogni stagione (anche le soste sono più brevi di 14 giorni).
+FINESTRA = timedelta(days=14)
 
 
 def _data(valore):
@@ -56,7 +59,8 @@ def _stato_sigillo(cartella: Path, riga: dict | None, limite: datetime) -> tuple
 
 
 def consigliata(base: Path, lega_id: str, giornata: int, scadenza: str | None) -> dict:
-    """Ultima ricerca valida per la giornata conclusa prima della scadenza. Non sigilla nulla.
+    """Ultima ricerca valida per la giornata conclusa prima della scadenza (e non più di 14 giorni prima).
+    Non sigilla nulla.
 
     Con un sigillo, l'ora di conclusione è quella registrata, mai quella attuale dei file.
     """
@@ -78,11 +82,13 @@ def consigliata(base: Path, lega_id: str, giornata: int, scadenza: str | None) -
         if limite is not None and quando >= limite:
             esito["dopo_scadenza"].append(c.name)
             continue
+        if limite is not None and quando < limite - FINESTRA:  # stessa giornata di un'altra stagione: non vale
+            continue
         candidate.append((quando, c, s, riga))
     if limite is None:
         return esito | {"motivo": "scadenza della giornata sconosciuta: mancano le date delle partite nei voti"}
     if not candidate:
-        return esito | {"motivo": "nessuna ricerca valida per la giornata conclusa prima della scadenza"}
+        return esito | {"motivo": "nessuna ricerca valida per la giornata conclusa nei 14 giorni prima della scadenza"}
     quando, c, s, riga = max(candidate, key=lambda x: x[0])
     sigillo, impronta = _stato_sigillo(c, riga, limite)
     esito["scelta"] = {"ricerca": c.name, "risultato": s["risultato"], "fatto_il": quando.isoformat(timespec="seconds"),

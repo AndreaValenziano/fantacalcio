@@ -130,7 +130,7 @@ Su insiemi piccoli (rosa, 18 scelti) si usa l'enumerazione completa. Parità: si
 
 ## 4. Verifica, sigillo, archivio, interfaccia (`verifica.py`)
 
-**Consigliata:** ultima ricerca della lega con `FATTO` e controllo superato, conclusa prima della scadenza (prima partita della giornata − `anticipo_minuti`). Si valuta la formazione `rosa` (o `assoluta` nelle leghe libere); per le leghe a rosa si valuta anche `assoluta` contro la perfetta assoluta. Le ricerche successive alla scadenza compaiono come "dopo la scadenza" e non contano.
+**Consigliata:** ultima ricerca della lega con `FATTO` e controllo superato, conclusa prima della scadenza (prima partita della giornata − `anticipo_minuti`) e non più di 14 giorni prima, perché il numero della giornata si ripete ogni stagione. Si valuta la formazione `rosa` (o `assoluta` nelle leghe libere); per le leghe a rosa si valuta anche `assoluta` contro la perfetta assoluta. Le ricerche successive alla scadenza compaiono come "dopo la scadenza" e non contano.
 
 **Sigillo:** quando una ricerca arriva a `FATTO`, il server aggiunge a `~/ConsiglioFormazione/registro.jsonl` una riga `{ricerca, lega, ora, sha256_risultato, sha256_richiesta}`. Il file si apre solo in aggiunta. In verifica l'impronta viene ricalcolata; se non coincide, il report lo segnala e lo stato non può essere `CERTIFICATO`. Ricerche precedenti a questa funzione: "senza sigillo".
 
