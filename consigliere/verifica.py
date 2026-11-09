@@ -433,7 +433,7 @@ def report_md(dati: dict) -> str:
 # ---------------------------------------------------------------------------------------------
 # Archivio delle verifiche e delle schierate
 # ---------------------------------------------------------------------------------------------
-def _cartella_giornata(base: Path, lega_id: str, stagione: str, giornata: int) -> Path:
+def cartella_giornata(base: Path, lega_id: str, stagione: str, giornata: int) -> Path:
     controlla_id(lega_id)
     if not isinstance(stagione, str) or not _STAGIONE.match(stagione):
         raise ValueError(f"Stagione non valida: {stagione!r}")
@@ -464,7 +464,7 @@ def _adesso() -> str:
 
 
 def salva(base: Path, lega_id: str, stagione: str, giornata: int, dati: dict) -> Path:
-    g = _cartella_giornata(base, lega_id, stagione, giornata)
+    g = cartella_giornata(base, lega_id, stagione, giornata)
     g.mkdir(parents=True, exist_ok=True)
     k = max(_numeri(g, _VERSIONE_DIR), default=0) + 1
     while True:
@@ -481,7 +481,7 @@ def salva(base: Path, lega_id: str, stagione: str, giornata: int, dati: dict) ->
 
 
 def versioni(base: Path, lega_id: str, stagione: str, giornata: int) -> list[dict]:
-    g = _cartella_giornata(base, lega_id, stagione, giornata)
+    g = cartella_giornata(base, lega_id, stagione, giornata)
     out = []
     for k in _numeri(g, _VERSIONE_DIR):
         try:
@@ -501,7 +501,7 @@ def versioni(base: Path, lega_id: str, stagione: str, giornata: int) -> list[dic
 
 
 def salva_schierata(base: Path, lega_id: str, stagione: str, giornata: int, f: dict) -> int:
-    g = _cartella_giornata(base, lega_id, stagione, giornata)
+    g = cartella_giornata(base, lega_id, stagione, giornata)
     g.mkdir(parents=True, exist_ok=True)
     k = max(_numeri(g, _SCHIERATA), default=0) + 1
     while True:
@@ -519,7 +519,7 @@ def salva_schierata(base: Path, lega_id: str, stagione: str, giornata: int, f: d
 
 
 def schierata(base: Path, lega_id: str, stagione: str, giornata: int) -> dict | None:
-    g = _cartella_giornata(base, lega_id, stagione, giornata)
+    g = cartella_giornata(base, lega_id, stagione, giornata)
     for k in reversed(_numeri(g, _SCHIERATA)):  # l'ultima leggibile
         try:
             return json.loads((g / f"schierata-v{k}.json").read_text(encoding="utf-8"))

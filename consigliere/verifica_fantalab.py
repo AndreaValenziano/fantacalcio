@@ -152,7 +152,7 @@ def _guardia(fl: Path, *percorsi: Path) -> None:
 def _scritture(a, base: Path, abbinamenti: Path) -> tuple:
     """Cartelle finali in cui questa esecuzione puo' scrivere."""
     return (base, fonti._cartella(base, "voti", f"{STAGIONE}-{a.giornata}"), abbinamenti.parent, abbinamenti,
-            verifica._cartella_giornata(base, LEGA_ID, STAGIONE, a.giornata))
+            verifica.cartella_giornata(base, LEGA_ID, STAGIONE, a.giornata))
 
 
 def _lega() -> dict:
@@ -232,7 +232,7 @@ def _esegui(a, fl, base, abbinamenti, input_fn, scaricatore, out) -> int:
         extra += [f"- {r}" for r in righe] + ["", _confronto(pa["totale"] if pa else None, dichiarato)]
         dati["benchmark"] = {"dichiarato": dichiarato, "undici": righe}
     dati["sezioni_extra"] = extra
-    _guardia(fl, verifica._cartella_giornata(base, LEGA_ID, STAGIONE, a.giornata))
+    _guardia(fl, verifica.cartella_giornata(base, LEGA_ID, STAGIONE, a.giornata))
     cartella = verifica.salva(base, LEGA_ID, STAGIONE, a.giornata, dati)
     out(f"Verifica salvata in {cartella} (stato {dati['stato']}).")
     return 0

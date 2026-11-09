@@ -94,7 +94,7 @@ def crea_server(base: Path, porta: int = 8765, avvia=avvia_terminale, scaricator
     def stagione_giornata(stagione, giornata):
         try:
             g = int(giornata)
-            verifica._cartella_giornata(base, "x", stagione, g)  # stessi controlli dell'archivio
+            verifica.cartella_giornata(base, "x", stagione, g)  # stessi controlli dell'archivio
         except (TypeError, ValueError):
             raise Errore(400, "Stagione (AAAA-AA) o giornata (1-38) non valida.")
         return stagione, g
@@ -107,10 +107,15 @@ def crea_server(base: Path, porta: int = 8765, avvia=avvia_terminale, scaricator
         except pagine.PaginaNonValida as e:
             raise Errore(400, str(e))
 
+    def richiedi_avviso():
+        if not archivio.avviso_accettato():
+            raise Errore(409, "Prima leggi e accetta l'avviso sull'uso delle pagine di fantacalcio.it.")
+
     def fonte_voti(corpo_html, corpo_json, query):
         if corpo_html is not None:
             stagione, giornata = query.get("stagione", [None])[0], query.get("giornata", [None])[0]
         else:
+            richiedi_avviso()  # il download automatico richiede l'avviso; il caricamento a mano no
             stagione, giornata = corpo_json.get("stagione"), corpo_json.get("giornata")
         stagione, giornata = stagione_giornata(stagione, giornata)
         r = acquisisci(fonti.acquisisci_voti, base, stagione, giornata, corpo_html, scaricatore)
@@ -121,6 +126,8 @@ def crea_server(base: Path, porta: int = 8765, avvia=avvia_terminale, scaricator
         return out
 
     def fonte_listone(corpo_html):
+        if corpo_html is None:
+            richiedi_avviso()
         r = acquisisci(fonti.acquisisci_listone, base, corpo_html, scaricatore)
         with blocco:
             archivio.salva_listone(r["giocatori"], r["meta"].get("origine", "scaricata"))
@@ -139,16 +146,16 @@ def crea_server(base: Path, porta: int = 8765, avvia=avvia_terminale, scaricator
         lega_o_404(lega_id)
         stagione, giornata = stagione_giornata(stagione, giornata)
         elenco = verifica.versioni(base, lega_id, stagione, giornata)
-        ultima = None
-        for v in reversed(elenco):
+        ultima, illeggibile = None, None
+        if elenco:  # solo l'ultima versione: se è illeggibile lo si dice, senza mostrarne una più vecchia
+            k = elenco[-1]["k"]
             try:
-                ultima = json.loads((verifica._cartella_giornata(base, lega_id, stagione, giornata) / f"v{v['k']}"
+                ultima = json.loads((verifica.cartella_giornata(base, lega_id, stagione, giornata) / f"v{k}"
                                      / "verifica.json").read_text(encoding="utf-8"))
-                break
             except (OSError, json.JSONDecodeError, UnicodeDecodeError):
-                continue
+                illeggibile = k
         meta, _ = voti_giornata(stagione, giornata)
-        return {"versioni": elenco, "ultima": ultima, "schierata": verifica.schierata(base, lega_id, stagione, giornata),
+        return {"versioni": elenco, "ultima": ultima, "versione_illeggibile": illeggibile, "schierata": verifica.schierata(base, lega_id, stagione, giornata),
                 "voti": meta}
 
     def nuova_verifica(lega_id, stagione, giornata):
@@ -221,7 +228,12 @@ def crea_server(base: Path, porta: int = 8765, avvia=avvia_terminale, scaricator
             return origine is None or origine in {f"http://{h}" for h in locali}
 
         def _corpo(self, limite):
-            n = int(self.headers.get("Content-Length") or 0)
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                raise Errore(400, "Richiesta non valida.")
+            if n < 0:
+                raise Errore(400, "Richiesta non valida.")
             if n > limite:
                 if n <= 5 * limite:
                     while n > 0:
@@ -281,7 +293,15 @@ def crea_server(base: Path, porta: int = 8765, avvia=avvia_terminale, scaricator
                     query = parse_qs(urlsplit(self.path).query)
                     if "stagione" in query or "giornata" in query:
                         return fonte_voti(self._corpo(MAX_PAGINA), None, query)
-                    return fonte_voti(None, self._corpo_json(), query)
+                    grezzo = self._corpo(MAX_PAGINA)
+                    try:
+                        dati = json.loads(grezzo or b"{}")
+                    except (json.JSONDecodeError, UnicodeDecodeError):
+                        dati = None
+                    if not isinstance(dati, dict):
+                        raise Errore(400, "Per caricare una pagina a mano indica nell'indirizzo ?stagione=AAAA-AA&giornata=N "
+                                          "(il corpo deve essere l'HTML); per scaricarla invia JSON con stagione e giornata.")
+                    return fonte_voti(None, dati, query)
                 case "POST", ["fonti", "listone"]:
                     return fonte_listone(self._corpo(MAX_PAGINA) or None)
                 case "GET", ["verifica", lega_id, stagione, giornata]:

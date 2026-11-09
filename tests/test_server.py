@@ -228,7 +228,56 @@ class TestServer(unittest.TestCase):
     def copie_voti(self):
         return list((self.base / "fonti" / "voti").rglob("*.html"))
 
+    def accetta(self):
+        self.assertEqual(self.chiama("POST", "/api/avviso").status, 200)
+
+    def test_download_richiede_avviso_v2(self):
+        chiamate = []
+        self.rete = lambda r, timeout=None: chiamate.append(r) or _Risposta(self.html, r.full_url)
+        voti = ("POST", "/api/fonti/voti", {"stagione": "2026-27", "giornata": 11})
+        for stato in ("assente", "v1"):
+            if stato == "v1":
+                (self.base / "avviso.json").write_text('{"accettato_il": "2026-01-01T10:00:00+01:00"}')
+            for metodo, p, c in (voti, ("POST", "/api/fonti/listone", None)):
+                r = self.chiama(metodo, p, c)
+                self.assertEqual(r.status, 409, (stato, p))
+                self.assertIn("accetta l'avviso", self.json(r)["errore"])
+        self.assertEqual(chiamate, [])
+        self.accetta()
+        self.assertEqual(self.chiama(*voti).status, 200)
+        self.assertEqual(len(chiamate), 1)
+
+    def test_caricamento_a_mano_senza_avviso(self):
+        self.assertEqual(self.chiama("POST", f"/api/fonti/voti?{Q_VOTI}", self.html).status, 200)
+
+    def test_voti_html_senza_query(self):
+        r = self.chiama("POST", "/api/fonti/voti", self.html)
+        self.assertEqual(r.status, 400)
+        self.assertIn("?stagione=", self.json(r)["errore"])
+
+    def test_content_length_non_valido(self):
+        for valore in ("-5", "abc"):
+            c = http.client.HTTPConnection("127.0.0.1", self.porta, timeout=5)
+            c.putrequest("POST", "/api/leghe")
+            c.putheader("Content-Length", valore)
+            c.endheaders()
+            r = c.getresponse()
+            self.assertEqual(r.status, 400, valore)
+            c.close()
+
+    def test_ultima_versione_illeggibile_segnalata(self):
+        self.prepara()
+        self.chiama("POST", f"/api/fonti/voti?{Q_VOTI}", self.html)
+        self.chiama("POST", V11)
+        self.chiama("POST", V11)
+        (self.base / "verifiche/prova/2026-27/G11/v2/verifica.json").write_text("{rotto")
+        g = self.json(self.chiama("GET", V11))
+        self.assertIsNone(g["ultima"])
+        self.assertEqual(g["versione_illeggibile"], 2)
+        self.assertEqual(len(g["versioni"]), 2)
+
     def test_voti_scaricati(self):
+        self.accetta()
         r = self.chiama("POST", "/api/fonti/voti", {"stagione": "2026-27", "giornata": 11})
         self.assertEqual(r.status, 200, r.dati)
         d = self.json(r)
@@ -250,11 +299,13 @@ class TestServer(unittest.TestCase):
         self.assertEqual(self.copie_voti(), [])
 
     def test_voti_stagione_o_giornata_non_valide(self):
+        self.accetta()
         for q in ("stagione=../x&giornata=11", "stagione=2026-27&giornata=39", "stagione=2026-27&giornata=a"):
             self.assertEqual(self.chiama("POST", f"/api/fonti/voti?{q}", self.html).status, 400, q)
         self.assertEqual(self.chiama("POST", "/api/fonti/voti", {"stagione": "2026-27"}).status, 400)
 
     def test_voti_fonte_non_accessibile(self):
+        self.accetta()
         def giu(r, timeout=None):
             raise OSError("rete assente")
         self.rete = giu
@@ -272,6 +323,7 @@ class TestServer(unittest.TestCase):
         self.assertEqual(r.status, 400)
 
     def test_listone_dal_sito_e_a_mano(self):
+        self.accetta()
         self.html = (DATI / "quotazioni_ridotta.html").read_bytes()
         r = self.chiama("POST", "/api/fonti/listone")
         self.assertEqual(r.status, 200, r.dati)
