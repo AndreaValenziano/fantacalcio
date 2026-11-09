@@ -151,7 +151,7 @@ def _guardia(fl: Path, *percorsi: Path) -> None:
 
 def _scritture(a, base: Path, abbinamenti: Path) -> tuple:
     """Cartelle finali in cui questa esecuzione puo' scrivere."""
-    return (base, fonti._cartella(base, "voti", f"{STAGIONE}-{a.giornata}"), abbinamenti.parent,
+    return (base, fonti._cartella(base, "voti", f"{STAGIONE}-{a.giornata}"), abbinamenti.parent, abbinamenti,
             verifica._cartella_giornata(base, LEGA_ID, STAGIONE, a.giornata))
 
 
@@ -213,7 +213,7 @@ def _esegui(a, fl, base, abbinamenti, input_fn, scaricatore, out) -> int:
             return 1
         slugs = [s for k in ("titolari", "panchina") for r in _RUOLI for s in (prev.get(k) or {}).get(r, [])]
         slugs += [prev.get("capitano"), prev.get("vicecapitano")]
-        _guardia(fl, abbinamenti.parent)
+        _guardia(fl, abbinamenti.parent, abbinamenti)
         abb = risolvi([s for s in slugs if s], voti, abbinamenti, input_fn, out)
         f = formazione_fantalab(prev, abb, {x["id"]: x for x in listone})
         consigliata = {"scelta": {"ricerca": f"FantaLab G{a.giornata:02d} previsione_macchina.json",
