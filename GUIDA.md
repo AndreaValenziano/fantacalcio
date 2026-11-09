@@ -1,0 +1,94 @@
+# Consigliere di formazione — guida
+
+Il consigliere ti dice chi schierare nella tua lega di Fantacalcio e ti spiega perché. Lo usi dal browser, ma tutto resta sul tuo computer. Per le ricerche usa un'IA che hai già, Claude o Gemini, e la apre in una finestra a parte.
+
+Non entra mai nella tua lega e non conosce la tua password. La formazione la inserisci sempre tu nell'app.
+
+Le cose da fare una volta sola sono i passi 1–4. Poi, ogni giornata, bastano i passi 6 e 7.
+
+---
+
+## 1. Installa Python (una volta)
+
+Python è il programma che fa funzionare il consigliere. Serve la versione **3.11 o successiva**.
+
+**Windows**
+1. Vai su https://www.python.org/downloads/ e premi il pulsante giallo "Download Python 3…".
+2. Apri il file scaricato.
+3. Nella prima schermata **spunta "Add python.exe to PATH"** in basso, poi premi "Install Now".
+4. Alla fine premi "Close".
+
+**Mac**
+1. Vai su https://www.python.org/downloads/ e premi "Download Python 3…".
+2. Apri il file `.pkg` scaricato e segui i passaggi fino a "Chiudi".
+
+## 2. Installa l'IA e fai l'accesso (una volta)
+
+Ti serve il **programma a riga di comando** dell'IA, non solo il sito o l'app per il telefono. Queste istruzioni cambiano spesso: segui quelle ufficiali del momento.
+
+- **Claude** (consigliato su Mac): le istruzioni ufficiali di Claude Code sul sito claude.com. Serve un abbonamento Claude.
+- **Gemini** (consigliato su Windows): https://github.com/google-gemini/gemini-cli. Si accede con un account Google.
+
+L'installazione chiede di copiare un comando nel Terminale (Mac) o nel Prompt dei comandi (Windows). È l'unica volta che serve: copialo così com'è, premi Invio, poi scrivi `claude` oppure `gemini` e segui le istruzioni per l'accesso. Quando l'IA ti saluta, chiudi la finestra.
+
+Gemini gratuito ha un limite di richieste al giorno. Se una ricerca si ferma per questo, riprova più tardi.
+
+## 3. Scarica il consigliere (una volta)
+
+Scompatta lo zip `consigliere-formazione.zip` in una cartella a tua scelta, ad esempio Documenti.
+
+## 4. Avvia il consigliere
+
+- **Mac:** fai doppio clic su `avvia.command`.
+  La prima volta il Mac può dire che il file "non può essere aperto". In quel caso apri Impostazioni di Sistema → Privacy e sicurezza, scorri in basso e premi **"Apri comunque"** accanto ad `avvia.command`. Le volte successive basta il doppio clic.
+- **Windows:** fai doppio clic su `avvia.bat`.
+  Se compare "Windows ha protetto il PC", premi **"Ulteriori informazioni"** e poi **"Esegui comunque"**.
+
+Si apre una finestra con alcune scritte e poi il browser con la pagina del consigliere. **Lascia aperta quella finestra** finché usi il consigliere: chiudendola, il programma si ferma.
+
+La prima volta la pagina mostra un avviso sull'uso delle pagine di fantacalcio.it. Leggilo: se sei d'accordo, premi "Ho capito e accetto".
+
+## 5. Prepara listone, lega e rosa (una volta, poi solo quando cambiano)
+
+1. **Listone.** Dal browser, senza accedere, apri https://www.fantacalcio.it/quotazioni-fantacalcio e premi "Scarica" per ottenere il file Excel. Va bene anche la "lista calciatori" Classic scaricata dalla tua lega. Nella pagina del consigliere, sotto "Listone", scegli il file. Ricaricalo quando cambia, ad esempio dopo il mercato: il consigliere ti segnala i giocatori della rosa che hanno cambiato squadra o non ci sono più.
+2. **Lega.** Apri "Aggiungi una lega", scegli il modello più simile (pensionati, grossa, F1, scelta libera) e dagli un nome. Si apre la pagina delle regole: confrontala con le impostazioni della lega nell'app e correggi ciò che è diverso. I campi "da scegliere" vanno compilati, altrimenti non si può cercare.
+3. **Rosa.** Premi "Modifica rosa" e incolla i nomi dei tuoi giocatori, uno per riga. Se due giocatori hanno lo stesso nome, aggiungi la squadra: `Thuram JUV`. Premi "Abbina al listone" e poi "Aggiungi alla rosa". Se un nome non viene trovato, controlla come è scritto nel listone. Se la tua lega ha cambiato il ruolo di un giocatore, correggilo dalla tabella della rosa.
+
+## 6. Cerca la formazione (ogni giornata)
+
+1. Nella pagina "Le mie leghe" scegli la lega, l'IA e lo stile:
+   - **Punti sicuri:** il punteggio più alto che ci si può aspettare.
+   - **Più rischio:** più possibilità di un punteggio molto alto, con qualche incertezza in più.
+2. Premi **"Cerca la formazione"**. Si apre una nuova finestra con l'IA al lavoro.
+3. L'IA può chiederti il permesso di leggere una pagina o di eseguire il controllo. Leggi la richiesta e conferma solo se riguarda pagine di calcio o il file `controlla.py`. **Non confermare mai** indirizzi `leghe.fantacalcio.it` o richieste di login.
+4. Ci vogliono alcuni minuti. Quando l'IA ti dice di tornare alla pagina, il risultato compare da solo. Puoi chiudere la finestra dell'IA.
+
+Se la finestra dell'IA si chiude o si blocca, nella pagina premi **"Ho chiuso il terminale"**: se il risultato non c'è, la pagina te lo dice e puoi rifare la ricerca.
+
+## 7. Leggi il risultato e inserisci la formazione
+
+- **Campo:** la formazione, con il capitano in giallo e i giocatori in dubbio in arancione. Sotto ci sono la panchina in ordine di ingresso e, dove la lega lo prevede, lo Switch consigliato.
+- **Motivi:** perché ogni giocatore è stato scelto, quanto è affidabile la notizia, le fonti lette e chi è rimasto fuori.
+- **Confronto:** la tua rosa accanto alla migliore formazione di tutta la Serie A. La migliore non tiene conto dei crediti.
+
+Ricontrolla i giocatori in dubbio prima della scadenza indicata, poi **inserisci tu la formazione nell'app**.
+
+Le ricerche passate restano sotto "Ricerche precedenti". I tuoi dati stanno nella cartella `ConsiglioFormazione` dentro la tua cartella utente.
+
+---
+
+## Se qualcosa non va
+
+| Cosa vedi | Cosa fare |
+|---|---|
+| Doppio clic e non succede nulla, o "Non trovo Python 3.11" | Installa Python (passo 1). Su Windows reinstallalo spuntando "Add python.exe to PATH". |
+| "Il programma non risponde" | La finestra del consigliere è stata chiusa: riavvialo (passo 4). |
+| "Claude non risulta installato" o "Gemini non risulta installato" | Installa l'IA (passo 2), poi chiudi e riapri il consigliere. |
+| "Carica prima il listone" | Passo 5.1. |
+| "Il file non è un Excel .xlsx valido" o "Non trovo le colonne Ruolo, Nome e Squadra" | Riscarica il listone. Deve essere il file Excel Classic, non Mantra. |
+| "Completa le regole della lega" | Apri "Regole" e compila i campi "da scegliere". |
+| "La rosa della lega è vuota" | Passo 5.3. |
+| "C'è già una ricerca in corso per questa lega" | Apri la ricerca in corso da "Ricerche precedenti" e premi "Ho chiuso il terminale". |
+| "La ricerca non è andata a buon fine" | La formazione proposta non rispettava le regole e l'IA non è riuscita a correggerla. Gli errori sono elencati: rifai la ricerca. |
+| "Il file … è danneggiato" | Un file della cartella `ConsiglioFormazione` si è rovinato. Spostalo altrove (non cancellarlo) e ricarica la pagina. |
+| La finestra dell'IA dice che hai finito le richieste gratuite | Riprova più tardi o usa un'altra IA. |
