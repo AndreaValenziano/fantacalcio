@@ -2,6 +2,7 @@
 import hashlib
 import json
 import re
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -15,6 +16,7 @@ from .pagine import PaginaNonValida
 VERSIONE = "1"
 USER_AGENT = f"ConsiglioFormazione/{VERSIONE}"
 PAUSA = 3.0
+MAX_BYTE = 8 * 1024 * 1024
 TIMEOUT = 30
 _BASE = "https://www.fantacalcio.it/"
 URL_LISTONE = _BASE + "quotazioni-fantacalcio"
@@ -45,14 +47,28 @@ def ammesso(url: str) -> bool:
     return bool(m) and 1 <= int(m.group(2)) <= 38 and url == f"{_BASE}voti-fantacalcio-serie-a/{m.group(1)}/{int(m.group(2))}"
 
 
+class _SenzaRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *a, **k):
+        return None  # i 3xx diventano HTTPError
+
+
+def _apri_senza_redirect(richiesta, timeout=None):
+    return urllib.request.build_opener(_SenzaRedirect).open(richiesta, timeout=timeout)
+
+
 class Scaricatore:
-    def __init__(self, apri=urllib.request.urlopen, orologio=time.monotonic, dormi=time.sleep):
+    def __init__(self, apri=_apri_senza_redirect, orologio=time.monotonic, dormi=time.sleep):
         self._apri, self._orologio, self._dormi = apri, orologio, dormi
         self._ultima = None
+        self._lock = threading.Lock()
 
     def scarica(self, url: str) -> bytes:
         if not ammesso(url):
             raise ValueError(f"Indirizzo non ammesso: {url}")
+        with self._lock:  # una richiesta alla volta, pausa compresa
+            return self._scarica(url)
+
+    def _scarica(self, url: str) -> bytes:
         if self._ultima is not None:
             attesa = PAUSA - (self._orologio() - self._ultima)
             if attesa > 0:
@@ -64,7 +80,13 @@ class Scaricatore:
                 stato = r.getcode()
                 if stato != 200:
                     raise FonteNonAccessibile(f"Il sito ha risposto {stato} per {url}. {_INVITO}")
-                return r.read()
+                finale = getattr(r, "geturl", lambda: url)()
+                if not ammesso(finale):
+                    raise FonteNonAccessibile(f"Il sito ha rimandato a un indirizzo non ammesso ({finale}). {_INVITO}")
+                corpo = r.read(MAX_BYTE + 1)
+                if len(corpo) > MAX_BYTE:
+                    raise FonteNonAccessibile(f"La pagina {url} supera {MAX_BYTE // (1024 * 1024)} MB. {_INVITO}")
+                return corpo
         except FonteNonAccessibile:
             raise
         except urllib.error.HTTPError as e:
@@ -106,6 +128,11 @@ def archivia(base: Path, tipo: str, chiave: str, html: bytes, url: str, origine:
     return meta
 
 
+def _ordine(meta: dict) -> tuple:
+    m = re.fullmatch(r"(\d{8}-\d{6})(?:-(\d+))?\.html", meta.get("file", ""))
+    return (m.group(1), int(m.group(2) or 1)) if m else ("", 0)
+
+
 def copie(base: Path, tipo: str, chiave: str) -> list[dict]:
     cartella = _cartella(base, tipo, chiave)
     if not cartella.is_dir():
@@ -116,7 +143,7 @@ def copie(base: Path, tipo: str, chiave: str) -> list[dict]:
             metadati.append(json.loads(p.read_text(encoding="utf-8")))
         except (json.JSONDecodeError, UnicodeDecodeError):
             continue
-    metadati.sort(key=lambda m: m.get("ora", ""), reverse=True)
+    metadati.sort(key=_ordine, reverse=True)
     return metadati
 
 
@@ -172,11 +199,19 @@ def acquisisci_voti(base: Path, stagione: str, giornata: int, html: bytes | None
         raise PaginaNonValida(f"La pagina non è quella richiesta: attesa stagione {stagione}, giornata "
                               f"{giornata}; trovata {trovata}.")
     chiave = f"{stagione}-{giornata}"
-    precedente = ultima(base, "voti", chiave)
+    differenze, nota = [], None
+    try:  # prima di archiviare: un confronto fallito non deve mai dare errore dopo l'effetto
+        precedente = ultima(base, "voti", chiave)
+        if precedente:
+            differenze = differenze_voti(pagine.leggi_voti(precedente[1]), voti)
+    except Exception as e:
+        differenze, nota = [], f"Confronto con la copia precedente non riuscito: {e}"
     meta = archivia(base, "voti", chiave, grezzo, url, origine,
                     {"giocatori": len(voti["giocatori"]), "mancanze": pagine.completezza(voti)})
-    differenze = differenze_voti(pagine.leggi_voti(precedente[1]), voti) if precedente else []
-    return {"meta": meta, "voti": voti, "differenze": differenze}
+    risultato = {"meta": meta, "voti": voti, "differenze": differenze}
+    if nota:
+        risultato["nota"] = nota
+    return risultato
 
 
 def acquisisci_listone(base: Path, html: bytes | None, scaricatore) -> dict:

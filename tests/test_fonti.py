@@ -2,6 +2,7 @@ import copy
 import hashlib
 import json
 import tempfile
+import threading
 import unittest
 import urllib.error
 from pathlib import Path
@@ -15,11 +16,16 @@ DATI = Path(__file__).resolve().parent / "dati"
 BASE_URL = "https://www.fantacalcio.it/"
 
 
+class _SenzaRedirectProbe:
+    def redirect_request(self):
+        return fonti._SenzaRedirect().redirect_request(None, None, 302, "", {}, "x")
+
+
 class _Risposta:
     def __init__(self, corpo=b"ok", status=200):
         self.corpo, self.status = corpo, status
 
-    def read(self):
+    def read(self, n=-1):
         return self.corpo
 
     def getcode(self):
@@ -84,6 +90,63 @@ class TestScaricatore(unittest.TestCase):
         self.assertEqual(req.get_header("User-agent"), "ConsiglioFormazione/1")
         self.assertEqual(timeout, 30)
 
+    def test_due_thread_la_seconda_richiesta_aspetta(self):
+        tempo = [100.0]
+        dormite = []
+        dentro = threading.Event()
+        rilascia = threading.Event()
+        n = [0]
+
+        def apri(req, timeout=None):
+            n[0] += 1
+            if n[0] == 1:
+                dentro.set()
+                rilascia.wait(5)
+            return _Risposta(b"x")
+
+        def dormi(s):
+            dormite.append(s)
+
+        sc = Scaricatore(apri=apri, orologio=lambda: tempo[0], dormi=dormi)
+        t1 = threading.Thread(target=sc.scarica, args=(fonti.URL_LISTONE,))
+        t2 = threading.Thread(target=sc.scarica, args=(fonti.URL_PROBABILI,))
+        t1.start()
+        self.assertTrue(dentro.wait(5))
+        t2.start()
+        t2.join(0.3)
+        self.assertTrue(t2.is_alive())  # bloccato dal lock finche la prima non finisce
+        self.assertEqual(n[0], 1)
+        rilascia.set()
+        t1.join(5)
+        t2.join(5)
+        self.assertEqual(n[0], 2)
+        self.assertEqual(len(dormite), 1)
+        self.assertAlmostEqual(dormite[0], 3.0)
+
+    def test_redirect_a_host_non_ammesso(self):
+        class R(_Risposta):
+            def geturl(self):
+                return "https://leghe.fantacalcio.it/x"
+        sc = Scaricatore(apri=lambda r, timeout=None: R(b"x"), dormi=lambda s: None)
+        with self.assertRaises(FonteNonAccessibile):
+            sc.scarica(fonti.URL_LISTONE)
+
+    def test_redirect_3xx_non_seguito(self):
+        def apri(req, timeout=None):
+            raise urllib.error.HTTPError(req.full_url, 302, "Found", {}, None)
+        with self.assertRaises(FonteNonAccessibile) as c:
+            Scaricatore(apri=apri, dormi=lambda s: None).scarica(fonti.URL_LISTONE)
+        self.assertIn("302", str(c.exception))
+        self.assertIsNone(_SenzaRedirectProbe().redirect_request())
+
+    def test_pagina_troppo_grande(self):
+        class Grande(_Risposta):
+            def read(self, n=-1):
+                return b"x" * (n if n > 0 else fonti.MAX_BYTE + 10)
+        sc = Scaricatore(apri=lambda r, timeout=None: Grande(), dormi=lambda s: None)
+        with self.assertRaises(FonteNonAccessibile):
+            sc.scarica(fonti.URL_LISTONE)
+
     def test_errore_http(self):
         def apri(req, timeout=None):
             raise urllib.error.HTTPError(req.full_url, 403, "Forbidden", {}, None)
@@ -135,6 +198,15 @@ class TestArchivio(unittest.TestCase):
         self.assertEqual([a["file"], b["file"], c["file"]],
                          ["20261109-100000.html", "20261109-100000-2.html", "20261109-100000-3.html"])
 
+    def test_ordine_con_stesso_secondo_incluso_il_10(self):
+        with mock.patch.object(fonti, "_marca", return_value="20261109-100000"):
+            for i in range(12):
+                fonti.archivia(self.base, "voti", "x", f"v{i}".encode(), "u", "scaricata", {})
+        meta, html = fonti.ultima(self.base, "voti", "x")
+        self.assertEqual(html, "v11")
+        self.assertEqual(meta["file"], "20261109-100000-12.html")
+        self.assertEqual(fonti.copie(self.base, "voti", "x")[-1]["file"], "20261109-100000.html")
+
     def test_ultima_e_copie(self):
         self.assertIsNone(fonti.ultima(self.base, "voti", "x"))
         self.assertEqual(fonti.copie(self.base, "voti", "x"), [])
@@ -180,9 +252,21 @@ class TestAcquisizione(unittest.TestCase):
 
     def test_seconda_copia_con_differenze(self):
         fonti.acquisisci_voti(self.base, "2026-27", 11, self.html, None)
-        modificata = self.html.replace(b"</body>", b"</body>")
+        primo = fonti.pagine.leggi_voti(self.html.decode("utf-8"))["giocatori"][0]
+        vecchio = b'<span class="player-grade " data-value="7"></span>'
+        self.assertEqual(primo["voto"], 7.0)
+        self.assertIn(vecchio, self.html)
+        modificata = self.html.replace(vecchio, b'<span class="player-grade " data-value="3"></span>', 1)
         r = fonti.acquisisci_voti(self.base, "2026-27", 11, modificata, None)
+        self.assertIn({"id": primo["id"], "nome": primo["nome"], "campo": "voto", "prima": primo["voto"], "dopo": 3.0},
+                      r["differenze"])
+        self.assertEqual(len(fonti.copie(self.base, "voti", "2026-27-11")), 2)
+
+    def test_copia_precedente_illeggibile_non_blocca(self):
+        fonti.archivia(self.base, "voti", "2026-27-11", b"<html>rotta</html>", "u", "scaricata", {})
+        r = fonti.acquisisci_voti(self.base, "2026-27", 11, self.html, None)
         self.assertEqual(r["differenze"], [])
+        self.assertIn("Confronto", r["nota"])
         self.assertEqual(len(fonti.copie(self.base, "voti", "2026-27-11")), 2)
 
     def test_acquisisci_listone(self):
