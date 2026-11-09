@@ -53,7 +53,10 @@ Per ogni scheda compila: `disponibilita` (`disponibile`, `infortunio_dubbio`, `i
 
 Usa **tutte** le regole della lega:
 
-- **Modulo** tra quelli di `lega.moduli`; 11 titolari con 1 portiere e i ruoli del modulo, nell'ordine "D-C-A".
+- **Modulo** tra quelli di `lega.moduli`; 11 titolari con 1 portiere e i ruoli del modulo, nell'ordine "D-C-A". Il modulo **non è fisso**: Confronta tutti i moduli ammessi e scegli quello che fa giocare i migliori 11 disponibili. Prima classifica i candidati di ogni ruolo, poi prova i moduli: un quarto centrocampista o un terzo attaccante forte vale più di un difensore debole, e viceversa.
+  - **senza modificatore difesa**, di solito rende di più un modulo offensivo come il **3-4-3** (o 3-5-2): più giocatori che possono prendere bonus, meno difensori che valgono solo il voto. Scegli un modulo con più difensori solo se i tuoi difensori sono chiaramente migliori dei centrocampisti o attaccanti in alternativa.
+  - **con il modificatore difesa** attivo, servono almeno 4 difensori per ottenerlo, quindi di solito si preferisce il **4-3-3** (o 4-4-2 se i centrocampisti sono migliori degli attaccanti). Un modulo a 3 difensori rinuncia al modificatore: sceglilo solo se il vantaggio in attacco è evidente.
+  - Nel `motivo` del primo titolare o in `differenza_piu_grande` spiega in una frase perché quel modulo.
 - **Panchina:** `fissa` = esattamente quel numero per ruolo; `minimi` = almeno quei numeri per ruolo e non più di `max`; `libera` = a tua scelta. Mettila **in ordine di ingresso**: con sostituzioni `traditional` entra la prima riserva dello stesso ruolo; con `hybrid` può entrare anche un ruolo diverso se il modulo resta ammesso, quindi alterna i ruoli con criterio. Considera il numero massimo di sostituzioni (`null` = illimitate).
 - **Modificatore difesa** (se attivo): conta solo con almeno 4 difensori schierati, sul voto puro senza bonus del portiere e dei 3 migliori difensori, a fasce. Può rendere migliore un modulo a 4 o 5 difensori: valutalo.
 - **Capitano e vice** (solo se `capitano.attivo`): bonus sul voto puro, non sul fantavoto; scegli chi ha alta probabilità di voto 7 o più, con minuti sicuri. Il vice è un altro titolare. Se il capitano non è attivo, `capitano` e `vice` sono `null`.

@@ -19,6 +19,11 @@ class TestSkill(unittest.TestCase):
                       "Scarica", "comando_controllo", "FATTO", "confidenza", "fonti_non_lette"):
             self.assertIn(testo, self.t)
 
+    def test_skill_guida_la_scelta_del_modulo(self):
+        sezione = self.t.split("## 5.")[1].split("## 6.")[0]
+        for testo in ("Confronta", "3-4-3", "4-3-3", "senza modificatore", "con il modificatore"):
+            self.assertIn(testo, sezione)
+
     def test_esempio_nella_skill_ha_le_chiavi_del_controllo(self):
         blocco = re.search(r"```json\n(.*?)\n```", self.t, re.S)
         self.assertIsNotNone(blocco, "manca il blocco JSON di esempio")
