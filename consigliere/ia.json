@@ -1,0 +1,11 @@
+[
+ {"id": "claude", "nome": "Claude", "comando": "claude", "garantita": true, "avviso": null,
+  "argomenti": ["{prompt}",
+   "--allowedTools", "Read(./**),Write(./**),Edit(./**),WebSearch,WebFetch,Bash({controllo})",
+   "--disallowedTools", "WebFetch(domain:leghe.fantacalcio.it),WebFetch(domain:apileague.fantacalcio.it)"]},
+ {"id": "gemini", "nome": "Gemini", "comando": "gemini", "garantita": true,
+  "avviso": "Gemini chiederà conferma nel terminale: rispondi tu a ogni richiesta.",
+  "argomenti": ["--prompt-interactive", "{prompt}"]},
+ {"id": "opencode", "nome": "OpenCode (modello locale)", "comando": "opencode", "garantita": false,
+  "avviso": "Non provato: può non avere la ricerca web.", "argomenti": ["--prompt", "{prompt}"]}
+]
