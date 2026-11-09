@@ -1,4 +1,5 @@
 """Cartella di ricerca, script del terminale e stato della ricerca."""
+import hashlib
 import json
 import os
 import re
@@ -126,7 +127,8 @@ def _scadenza(risultato: dict, lega: dict) -> str | None:
     return (prima - timedelta(minutes=lega.get("anticipo_minuti") or 0)).isoformat(timespec="seconds")
 
 
-def stato_ricerca(cartella: Path) -> dict:
+def _stato(cartella: Path) -> dict:
+    """Stato della ricerca senza effetti sul disco."""
     cartella = Path(cartella)
     richiesta = json.loads(_copia_richiesta(cartella).read_text(encoding="utf-8"))
     s = {"id": cartella.name, "stato": "in_corso", "avviata_il": richiesta.get("creata_il"),
@@ -144,6 +146,73 @@ def stato_ricerca(cartella: Path) -> dict:
     if errori:
         return s | {"stato": "errore", "errori": errori}
     return s | {"stato": "pronto", "risultato": risultato, "scadenza": _scadenza(risultato, richiesta["lega"])}
+
+
+def stato_ricerca(cartella: Path) -> dict:
+    s = _stato(cartella)
+    if s["stato"] == "pronto":
+        sigilla(Path(cartella))
+    return s
+
+
+def _registro(base: Path) -> Path:
+    return Path(base) / "registro.jsonl"
+
+
+def _righe_registro(base: Path) -> list[dict]:
+    try:
+        testo = _registro(base).read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return []
+    righe = []
+    for x in testo.splitlines():
+        try:
+            r = json.loads(x)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(r, dict):
+            righe.append(r)
+    return righe
+
+
+def sigillo(base: Path, lega_id: str, rid: str) -> dict | None:
+    return next((r for r in _righe_registro(base) if r.get("ricerca") == rid and r.get("lega") == lega_id), None)
+
+
+def impronta(percorso: Path) -> str:
+    return hashlib.sha256(Path(percorso).read_bytes()).hexdigest()
+
+
+def fatto_il(cartella: Path) -> str | None:
+    """Quando la ricerca si è conclusa: ora di FATTO (o di CHIUSA), ISO con fuso."""
+    for nome in ("FATTO", "CHIUSA"):
+        try:
+            t = (Path(cartella) / nome).stat().st_mtime
+        except FileNotFoundError:
+            continue
+        return datetime.fromtimestamp(t).astimezone().isoformat(timespec="seconds")
+    return None
+
+
+def sigilla(cartella: Path) -> dict:
+    """Aggiunge al registro (solo in coda) l'impronta di una ricerca conclusa, una volta sola."""
+    cartella = Path(cartella)
+    base, lega_id, rid = cartella.parents[2], cartella.parent.name, cartella.name
+    esistente = sigillo(base, lega_id, rid)
+    if esistente is not None:
+        return esistente
+    riga = {"ricerca": rid, "lega": lega_id, "fatto_il": fatto_il(cartella),
+            "sigillato_il": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "sha256_risultato": impronta(cartella / "risultato.json"),
+            "sha256_richiesta": impronta(_copia_richiesta(cartella))}
+    with open(_registro(base), "a+b") as f:  # "a": solo in coda, le righe precedenti restano intatte
+        f.seek(0, os.SEEK_END)
+        a_capo = b""
+        if f.tell():
+            f.seek(-1, os.SEEK_END)
+            a_capo = b"" if f.read(1) == b"\n" else b"\n"  # riga precedente troncata: non la si fonde
+        f.write(a_capo + (json.dumps(riga, ensure_ascii=False) + "\n").encode("utf-8"))
+    return riga
 
 
 def _cartelle(base: Path, lega_id: str) -> list[Path]:

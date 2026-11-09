@@ -5,8 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from consigliere.controllo import chiave, controlla
-from tests.aiuti import listone_prova, richiesta_prova, risultato_valido
+from consigliere.controllo import chiave, controlla, controlla_formazione
+from tests.aiuti import lega_prova, listone_prova, richiesta_prova, risultato_valido
 
 CONTROLLO = Path(__file__).resolve().parent.parent / "consigliere" / "controllo.py"
 
@@ -259,6 +259,27 @@ class TestCli(unittest.TestCase):
         self.assertEqual(p.returncode, 1)
         self.assertEqual((self.dir / "tentativi.txt").read_text().strip(), "1")
         self.assertFalse((self.dir / "FATTO").exists())
+
+
+
+class TestControllaFormazione(unittest.TestCase):
+    def test_controlla_formazione_pubblica(self):
+        lega, listone = lega_prova("grossa"), listone_prova()
+        f = risultato_valido("grossa")["formazioni"]["rosa"]
+        self.assertEqual(controlla_formazione(f, lega, listone), [])
+        f["panchina"][-1] = dict(f["titolari"][-1])
+        errori = controlla_formazione(f, lega, listone)
+        self.assertTrue(any("doppione" in e for e in errori), errori)
+        self.assertTrue(all(e.startswith("Formazione schierata:") for e in errori), errori)
+
+    def test_controlla_formazione_fuori_rosa_e_ruoli_della_lega(self):
+        lega, listone = lega_prova("grossa"), listone_prova()
+        f = risultato_valido("grossa")["formazioni"]["assoluta"]
+        self.assertTrue(any("non è nella rosa" in e for e in controlla_formazione(f, lega, listone)))
+        f = risultato_valido("grossa")["formazioni"]["rosa"]
+        d = next(g for g in f["titolari"] if g["ruolo"] == "D")
+        lega["ruoli"] = {chiave(d["nome"], d["squadra"]): "C"}
+        self.assertTrue(any("ruolo di" in e for e in controlla_formazione(f, lega, listone)))
 
 
 if __name__ == "__main__":

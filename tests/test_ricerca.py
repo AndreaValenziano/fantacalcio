@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import shlex
@@ -8,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from consigliere.ricerca import (carica_ia, chiudi_ricerca, crea_ricerca, elenco_ricerche,
-                                 ricerca_in_corso, scrivi_script, stato_ricerca)
+                                 ricerca_in_corso, scrivi_script, sigillo, stato_ricerca)
 from tests.aiuti import lega_prova, listone_prova, risultato_valido
 
 ORA = datetime(2026, 11, 13, 18, 0, 0, tzinfo=timezone(timedelta(hours=1)))
@@ -181,6 +182,50 @@ class TestRicerca(unittest.TestCase):
     def test_id_con_percorso_rifiutato(self):
         with self.assertRaises(ValueError):
             elenco_ricerche(self.base, "../x")
+
+    def righe_registro(self):
+        p = self.base / "registro.jsonl"
+        return [json.loads(x) for x in p.read_text(encoding="utf-8").splitlines()] if p.exists() else []
+
+    def test_sigillo_una_volta(self):
+        c = self.nuova("pensionati")
+        self.scrivi(c, risultato_valido("pensionati"))
+        stato_ricerca(c)
+        stato_ricerca(c)
+        righe = self.righe_registro()
+        self.assertEqual(len(righe), 1)
+        r = righe[0]
+        self.assertEqual((r["ricerca"], r["lega"]), (c.name, "pensionati"))
+        self.assertEqual(r["sha256_risultato"], hashlib.sha256((c / "risultato.json").read_bytes()).hexdigest())
+        copia = c.parent / f"{c.name}.richiesta.json"
+        self.assertEqual(r["sha256_richiesta"], hashlib.sha256(copia.read_bytes()).hexdigest())
+        self.assertIsNotNone(datetime.fromisoformat(r["fatto_il"]).tzinfo)
+        self.assertIsNotNone(datetime.fromisoformat(r["sigillato_il"]).tzinfo)
+        self.assertEqual(sigillo(self.base, "pensionati", c.name), r)
+        self.assertIsNone(sigillo(self.base, "pensionati", "20260101-000000"))
+
+    def test_sigillo_solo_se_pronta(self):
+        c = self.nuova()
+        stato_ricerca(c)
+        r = risultato_valido("grossa")
+        r["formazioni"]["rosa"]["modulo"] = "3-6-1"
+        self.scrivi(c, r)
+        stato_ricerca(c)
+        self.assertEqual(self.righe_registro(), [])
+
+    def test_sigillo_registro_solo_aggiunta(self):
+        registro = self.base / "registro.jsonl"
+        registro.write_text('{"ricerca": "vecchia", "lega": "grossa"}\n', encoding="utf-8")
+        a = self.nuova()
+        self.scrivi(a, risultato_valido("grossa"))
+        stato_ricerca(a)
+        prima = registro.read_bytes()
+        b = self.nuova(ora=ORA + timedelta(hours=1))
+        self.scrivi(b, risultato_valido("grossa"))
+        stato_ricerca(b)
+        dopo = registro.read_bytes()
+        self.assertTrue(dopo.startswith(prima))
+        self.assertEqual([r["ricerca"] for r in self.righe_registro()], ["vecchia", a.name, b.name])
 
 
 if __name__ == "__main__":

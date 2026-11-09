@@ -154,6 +154,22 @@ def _controlla_formazione(etichetta, f, lega, listone, rosa_lega) -> list[str]:
     return e
 
 
+def controlla_formazione(f: dict, lega: dict, listone: list[dict]) -> list[str]:
+    """Regole della lega su una formazione schierata (nomi e squadre del listone, ruoli della lega)."""
+    ruoli = lega.get("ruoli") or {}
+    indice = {}
+    for g in listone:
+        k = chiave(g["nome"], g["squadra"])
+        indice[k] = dict(g, ruolo=ruoli.get(k, g["ruolo"]))
+    rosa_lega = {chiave(g["nome"], g["squadra"]) for g in lega.get("rosa") or []} if lega.get("tipo") == "rosa" else None
+    if not isinstance(f, dict):
+        return ["Formazione schierata: deve essere un oggetto"]
+    try:
+        return _controlla_formazione("schierata", f, lega, indice, rosa_lega)
+    except (KeyError, TypeError, AttributeError, ValueError) as ex:
+        return [f"Formazione schierata: formato non valido ({ex!r})"]
+
+
 def _controlla(richiesta: dict, risultato: dict) -> list[str]:
     e = []
     lega = richiesta["lega"]
