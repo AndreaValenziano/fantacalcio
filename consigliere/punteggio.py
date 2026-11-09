@@ -102,3 +102,163 @@ def modificatore(voto_portiere: float | None, voti_difensori: list[float],
 def fasce_monotone(fasce: list[float]) -> bool:
     """Sono 7 e non decrescono al crescere della media."""
     return len(fasce) == _NUM_FASCE and all(a <= b for a, b in zip(fasce, fasce[1:]))
+
+
+# ---------------------------------------------------------------------------------------------
+# Valore di una formazione
+# ---------------------------------------------------------------------------------------------
+import itertools
+
+_ORDINE_RUOLI = {"P": 0, "D": 1, "C": 2, "A": 3}
+_MOTIVO_HYBRID = "cambio di ruolo diverso (regola Hybrid da verificare)"
+_MOTIVO_ORDINE = "ordine dei cambi da verificare"
+_MOTIVO_VICE = "subentro del vice da verificare"
+_MAX_PERMUTAZIONI = 8  # oltre 8 titolari senza voto (8! = 40320 ordini) non si prova ogni ordine
+
+
+def _modulo_di(ruoli: list[str]) -> str:
+    return "-".join(str(sum(1 for r in ruoli if r == x)) for x in "DCA")
+
+
+def _nome(voti: dict, i) -> str:
+    g = voti.get(i)
+    return g["nome"] if g else str(i)
+
+
+def _vp(lega: dict, voti: dict, i) -> float | None:
+    return voto_effettivo(voti.get(i), bool(lega.get("ammonito_senza_voto")))
+
+
+def _sostituzioni(lega: dict, voti: dict, f: dict, ordine: list[int]) -> tuple[dict, list[dict]]:
+    """Applica i cambi seguendo `ordine` (indici dei titolari senza voto).
+
+    Ritorna (indice del titolare -> riserva entrata, cambi).
+    """
+    sost = lega["sostituzioni"]
+    limite = sost.get("numero")
+    ibrida = sost.get("tipo") == "hybrid"
+    slot = [t["ruolo"] for t in f["titolari"]]  # ruolo di ogni posizione, cambia con un cambio di ruolo
+    usate: set[int] = set()
+    entrati: dict[int, dict] = {}
+    cambi: list[dict] = []
+    for idx in ordine:
+        if limite is not None and len(cambi) >= limite:
+            break
+        ruolo = slot[idx]
+        scelta = None
+        for j, r in enumerate(f["panchina"]):
+            if j not in usate and r["ruolo"] == ruolo and _vp(lega, voti, r["id"]) is not None:
+                scelta = j
+                break
+        if scelta is None and ibrida and ruolo != "P":
+            for j, r in enumerate(f["panchina"]):
+                if j in usate or r["ruolo"] in (ruolo, "P") or _vp(lega, voti, r["id"]) is None:
+                    continue
+                nuovi = slot[:idx] + [r["ruolo"]] + slot[idx + 1:]
+                if _modulo_di(nuovi) in lega["moduli"]:
+                    scelta = j
+                    break
+        if scelta is None:
+            continue
+        r = f["panchina"][scelta]
+        usate.add(scelta)
+        entrati[idx] = r
+        slot[idx] = r["ruolo"]
+        cambi.append({"esce": f["titolari"][idx]["id"], "entra": r["id"],
+                      "ruolo_diverso": r["ruolo"] != f["titolari"][idx]["ruolo"]})
+    return entrati, cambi
+
+
+def _valuta_ordine(lega: dict, voti: dict, f: dict, ordine: list[int]) -> dict:
+    ammonito = bool(lega.get("ammonito_senza_voto"))
+    entrati, cambi = _sostituzioni(lega, voti, f, ordine)
+    usciti = {f["titolari"][idx]["id"] for idx in entrati}
+    entrati_id = {r["id"] for r in entrati.values()}
+    campo = [t for t in f["titolari"] if t["id"] not in usciti] + list(entrati.values())
+    motivi: list[str] = []
+
+    giocatori = []
+    for ruolo_t, lista in (("titolare", f["titolari"]), ("riserva", f["panchina"])):
+        for r in lista:
+            g = voti.get(r["id"])
+            in_campo = (r["id"] not in usciti) if ruolo_t == "titolare" else (r["id"] in entrati_id)
+            coerente = fv_coerente(g) if g else True
+            giocatori.append({
+                "id": r["id"], "nome": _nome(voti, r["id"]), "ruolo": r["ruolo"],
+                "voto": voto_effettivo(g, ammonito), "fv": fv_lega(g, lega),
+                "titolare": ruolo_t == "titolare", "in_campo": in_campo,
+                "entrato": r["id"] in entrati_id, "uscito": r["id"] in usciti, "fv_coerente": coerente,
+            })
+            if in_campo and not coerente:
+                motivi.append(f"FV di {_nome(voti, r['id'])} da verificare")
+    if any(c["ruolo_diverso"] for c in cambi):
+        motivi.append(_MOTIVO_HYBRID)
+
+    totale = sum(g["fv"] for g in giocatori if g["in_campo"] and g["fv"] is not None)
+
+    if (lega.get("modificatore_difesa") or {}).get("attivo"):
+        portiere = next((_vp(lega, voti, r["id"]) for r in campo if r["ruolo"] == "P"), None)
+        difensori = [v for r in campo if r["ruolo"] == "D" and (v := _vp(lega, voti, r["id"])) is not None]
+        media, bonus_mod = modificatore(portiere, difensori, lega["modificatore_difesa"]["fasce"])
+    else:
+        media, bonus_mod = None, 0
+    totale += bonus_mod
+
+    cap_cfg = lega.get("capitano")
+    cap_id, vice_id = f.get("capitano"), f.get("vice")
+    capitano = {"id": cap_id, "bonus": 0, "da": None}
+    bonus_vice = 0
+    if cap_cfg and cap_cfg.get("attivo", True):
+        v_cap = _vp(lega, voti, cap_id) if cap_id is not None else None
+        v_vice = _vp(lega, voti, vice_id) if vice_id is not None else None
+        if v_cap is not None:
+            capitano.update(bonus=bonus_capitano(v_cap, cap_cfg), da="capitano")
+            beneficiato, voto_b = cap_id, v_cap
+        elif cap_id is not None and v_vice is not None:
+            bonus_vice = bonus_capitano(v_vice, cap_cfg)
+            capitano.update(id=vice_id, bonus=bonus_vice, da="vice")
+            motivi.append(_MOTIVO_VICE)
+            beneficiato, voto_b = vice_id, v_vice
+        else:
+            beneficiato = voto_b = None
+        if beneficiato is not None and not voto_mezzo(voto_b):
+            motivi.append(f"voto di {_nome(voti, beneficiato)} non multiplo di 0,5: bonus capitano da verificare")
+    totale += capitano["bonus"]
+
+    return {"totale": totale, "totale_senza_vice": totale - bonus_vice if capitano["da"] == "vice" else None,
+            "motivi": motivi, "giocatori": giocatori, "cambi": cambi,
+            "modificatore": {"media": media, "bonus": bonus_mod}, "capitano": capitano}
+
+
+def _con_switch(f: dict) -> dict | None:
+    """Formazione con titolare e riserva dello Switch scambiati (stessa posizione in panchina)."""
+    s = f.get("switch")
+    if not s:
+        return None
+    titolari = list(f["titolari"])
+    panchina = list(f["panchina"])
+    i = next(k for k, r in enumerate(titolari) if r["id"] == s["titolare"])
+    j = next(k for k, r in enumerate(panchina) if r["id"] == s["riserva"])
+    titolari[i], panchina[j] = panchina[j], titolari[i]
+    return {**f, "titolari": titolari, "panchina": panchina, "switch": None}
+
+
+def valuta(lega: dict, voti: dict, f: dict) -> dict:
+    """Punteggio di una formazione: cambi, capitano/vice, modificatore, Switch. `voti` = id -> Giocatore."""
+    mancanti = [i for i, t in enumerate(f["titolari"]) if _vp(lega, voti, t["id"]) is None]
+    mancanti.sort(key=lambda i: (_ORDINE_RUOLI[f["titolari"][i]["ruolo"]], i))
+    r = _valuta_ordine(lega, voti, f, mancanti)
+
+    sost = lega["sostituzioni"]
+    limite = sost.get("numero")
+    ordine_conta = len(mancanti) > 1 and (sost.get("tipo") == "hybrid" or (limite is not None and len(mancanti) > limite))
+    if ordine_conta and len(mancanti) <= _MAX_PERMUTAZIONI:
+        for perm in itertools.permutations(mancanti):
+            if abs(_valuta_ordine(lega, voti, f, list(perm))["totale"] - r["totale"]) > _EPS:
+                r["motivi"].append(_MOTIVO_ORDINE)
+                break
+
+    s = _con_switch(f)
+    r["con_switch"] = valuta(lega, voti, s) if s else None
+    r["stato"] = "PROVVISORIO" if r["motivi"] else "ESATTO"
+    return r
