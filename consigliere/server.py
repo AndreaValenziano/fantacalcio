@@ -194,6 +194,8 @@ def crea_server(base: Path, porta: int = 8765, avvia=avvia_terminale, scaricator
             scritto = str(corpo.get(ruolo) or "").strip()
             if not scritto:
                 return None
+            if len(scritto.splitlines()) > 1:
+                raise Errore(409, f"Per il {ruolo} scrivi un solo nome.")
             r = abbina(scritto, tit["trovati"])
             if len(r["trovati"]) == 1:
                 return r["trovati"][0]["nome"]

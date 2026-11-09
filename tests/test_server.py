@@ -388,6 +388,8 @@ class TestServer(unittest.TestCase):
         r = self.chiama("POST", V11 + "/schierata", corpo | {"vice": "Sconosciuto Zzz"})
         self.assertEqual(r.status, 409)
         self.assertIn("non è tra i titolari", self.json(r)["errore"])
+        r = self.chiama("POST", V11 + "/schierata", corpo | {"vice": "uno\ndue"})
+        self.assertEqual((r.status, self.json(r)["errore"]), (409, "Per il vice scrivi un solo nome."))
 
     def test_schierata_con_errori_di_regole(self):
         lega = self.prepara()

@@ -749,7 +749,7 @@ function vistaVerifica() {
       s.esitoSchierata = e;
     }
     ev.target.disabled = false;
-    if (s.esitoSchierata && (s.esitoSchierata.dettagli.errori || []).length) {
+    if (s.esitoSchierata && ((s.esitoSchierata.dettagli || {}).errori || []).length) {
       s.esitoSchierata = Object.assign(new Error("La formazione schierata non rispetta le regole della lega:"),
         { dettagli: s.esitoSchierata.dettagli });
     }
