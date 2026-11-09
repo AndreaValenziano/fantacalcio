@@ -41,18 +41,25 @@ def scadenza(voti: dict, lega: dict) -> str | None:
 # ---------------------------------------------------------------------------------------------
 # Formazione consigliata
 # ---------------------------------------------------------------------------------------------
-def _stato_sigillo(base: Path, lega_id: str, cartella: Path) -> tuple[str, str]:
+def _stato_sigillo(cartella: Path, riga: dict | None, limite: datetime) -> tuple[str, str]:
+    """integro, alterato (impronte diverse), tardivo (apposto alla scadenza o dopo) o assente."""
     attuale = ricerca.impronta(cartella / "risultato.json")
-    riga = ricerca.sigillo(base, lega_id, cartella.name)
     if riga is None:
         return "assente", attuale
     copia = cartella.parent / f"{cartella.name}.richiesta.json"
-    integro = riga.get("sha256_risultato") == attuale and riga.get("sha256_richiesta") == ricerca.impronta(copia)
-    return ("integro" if integro else "alterato"), attuale
+    if riga.get("sha256_risultato") != attuale or riga.get("sha256_richiesta") != ricerca.impronta(copia):
+        return "alterato", attuale
+    sigillato = _data(riga.get("sigillato_il"))
+    if sigillato is None or sigillato >= limite:
+        return "tardivo", attuale
+    return "integro", attuale
 
 
 def consigliata(base: Path, lega_id: str, giornata: int, scadenza: str | None) -> dict:
-    """Ultima ricerca valida per la giornata conclusa prima della scadenza. Non sigilla nulla."""
+    """Ultima ricerca valida per la giornata conclusa prima della scadenza. Non sigilla nulla.
+
+    Con un sigillo, l'ora di conclusione è quella registrata, mai quella attuale dei file.
+    """
     esito = {"scelta": None, "dopo_scadenza": [], "senza_giornata": [], "scadenza": scadenza, "motivo": None}
     limite = _data(scadenza)
     candidate = []
@@ -64,19 +71,20 @@ def consigliata(base: Path, lega_id: str, giornata: int, scadenza: str | None) -
         if not isinstance(g, int) or isinstance(g, bool):
             esito["senza_giornata"].append(c.name)
             continue
-        quando = _data(ricerca.fatto_il(c))
+        riga = ricerca.sigillo(base, lega_id, c.name)
+        quando = _data(riga.get("fatto_il") if riga else ricerca.fatto_il(c))
         if g != giornata or quando is None:
             continue
         if limite is not None and quando >= limite:
             esito["dopo_scadenza"].append(c.name)
             continue
-        candidate.append((quando, c, s))
+        candidate.append((quando, c, s, riga))
     if limite is None:
         return esito | {"motivo": "scadenza della giornata sconosciuta: mancano le date delle partite nei voti"}
     if not candidate:
         return esito | {"motivo": "nessuna ricerca valida per la giornata conclusa prima della scadenza"}
-    quando, c, s = max(candidate, key=lambda x: x[0])
-    sigillo, impronta = _stato_sigillo(Path(base), lega_id, c)
+    quando, c, s, riga = max(candidate, key=lambda x: x[0])
+    sigillo, impronta = _stato_sigillo(c, riga, limite)
     esito["scelta"] = {"ricerca": c.name, "risultato": s["risultato"], "fatto_il": quando.isoformat(timespec="seconds"),
                        "sigillo": sigillo, "sha256_risultato": impronta}
     return esito
@@ -121,24 +129,42 @@ def collega(giocatori: list[dict], voti: dict, listone: list[dict]) -> tuple[lis
     return collegati, non
 
 
+def _riferimento(valore, elenco: list[dict], ids: list):
+    """Id del giocatore indicato per {"nome", "squadra"} o per nome (solo se unico); None altrimenti."""
+    if isinstance(valore, dict):
+        if valore.get("squadra"):
+            k = chiave(valore.get("nome"), valore.get("squadra"))
+            trovati = [i for g, i in zip(elenco, ids) if chiave(g.get("nome"), g.get("squadra")) == k]
+            return trovati[0] if len(trovati) == 1 else None
+        valore = valore.get("nome")
+    if not valore:
+        return None
+    trovati = [i for g, i in zip(elenco, ids) if g.get("nome") == valore]
+    return trovati[0] if len(trovati) == 1 else None
+
+
 def formazione_da(f_risultato: dict, collegati: list[dict]) -> dict:
-    """Formazione per `punteggio.valuta`; chi non è collegato ha un id fittizio e vale come SV."""
+    """Formazione per `punteggio.valuta`; chi non è collegato ha un id fittizio e vale come SV.
+
+    Capitano, vice e Switch: per nome e squadra se c'è la squadra, per nome solo se unico.
+    """
     ids = {chiave(g.get("nome"), g.get("squadra")): g["id"] for g in collegati}
 
     def voce(g):
         id_ = ids.get(chiave(g.get("nome"), g.get("squadra")), f"non collegato: {g.get('nome')} ({g.get('squadra')})")
         return {"id": id_, "ruolo": g.get("ruolo")}
 
-    titolari = [voce(g) for g in f_risultato.get("titolari") or []]
-    panchina = [voce(g) for g in f_risultato.get("panchina") or []]
-    per_nome_t = {g.get("nome"): v["id"] for g, v in zip(f_risultato.get("titolari") or [], titolari)}
-    per_nome_p = {g.get("nome"): v["id"] for g, v in zip(f_risultato.get("panchina") or [], panchina)}
+    tit_r, pan_r = f_risultato.get("titolari") or [], f_risultato.get("panchina") or []
+    titolari, panchina = [voce(g) for g in tit_r], [voce(g) for g in pan_r]
+    id_t, id_p = [v["id"] for v in titolari], [v["id"] for v in panchina]
     sw, switch = f_risultato.get("switch"), None
-    if isinstance(sw, dict) and sw.get("titolare") in per_nome_t and sw.get("riserva") in per_nome_p:
-        switch = {"titolare": per_nome_t[sw["titolare"]], "riserva": per_nome_p[sw["riserva"]]}
+    if isinstance(sw, dict):
+        t, r = _riferimento(sw.get("titolare"), tit_r, id_t), _riferimento(sw.get("riserva"), pan_r, id_p)
+        if t is not None and r is not None:
+            switch = {"titolare": t, "riserva": r}
     return {"modulo": f_risultato.get("modulo"), "titolari": titolari, "panchina": panchina,
-            "capitano": per_nome_t.get(f_risultato.get("capitano")), "vice": per_nome_t.get(f_risultato.get("vice")),
-            "switch": switch}
+            "capitano": _riferimento(f_risultato.get("capitano"), tit_r, id_t),
+            "vice": _riferimento(f_risultato.get("vice"), tit_r, id_t), "switch": switch}
 
 
 # ---------------------------------------------------------------------------------------------
@@ -176,13 +202,17 @@ def _misura(lega, voti, voti_id, candidati, listone, f_ris, etichetta, motivi) -
         motivi.append(f"{etichetta}: formazione non valutabile ({e})")
         return None
     motivi += [f"{etichetta}: {m}" for m in ottenuto["motivi"]]
-    ruolo = {x["id"]: x["ruolo"] for x in f["titolari"] + f["panchina"]}
+    for campo in ("capitano", "vice"):
+        if f_ris.get(campo) and f[campo] is None:
+            motivi.append(f"{etichetta}: {campo} non individuato tra i titolari (nome assente o ambiguo)")
+    if f_ris.get("switch") and f["switch"] is None:
+        motivi.append(f"{etichetta}: Switch non individuato (nome assente o ambiguo)")
+    # stessi ruoli delle perfette (pagina o correzione della lega): la selezione non può essere negativa
+    nei_18 = {x["id"] for x in f["titolari"] + f["panchina"]}
     per_id = {c["id"]: c for c in candidati}
-    m18 = ottimo.migliore(lega, [dict(c, ruolo=ruolo[c["id"]]) for c in candidati if c["id"] in ruolo])
+    m18 = ottimo.migliore(lega, [c for c in candidati if c["id"] in nei_18])
     if m18 is None:
         motivi.append(f"{etichetta}: migliore tra i 18 non calcolabile, nessun modulo completo con i giocatori a voto")
-    else:
-        per_id = per_id | {i: dict(per_id[i], ruolo=ruolo[i]) for i in m18["titolari"]}
     return {"ottenuto": ottenuto, "migliore_tra_18": _con_nomi(m18, per_id, voti_id), "non_collegati": non}
 
 
@@ -264,15 +294,16 @@ def calcola(lega: dict, voti: dict, listone: list[dict], consigliata: dict | Non
         motivi.append("voti incompleti: le perfette sono calcolate sul sottoinsieme disponibile")
     voti_id = {g["id"]: g for g in voti.get("giocatori") or []}
     a_rosa = lega.get("tipo") == "rosa"
-    candidati = _candidati(lega, voti)
+    # ruoli corretti dalla lega (chiave nome|squadra del listone), collegati ai voti come la formazione
+    corretti = [{"nome": k.split("|", 1)[0], "squadra": k.split("|", 1)[-1], "ruolo": r}
+                for k, r in (lega.get("ruoli") or {}).items()]
+    correzioni = {g["id"]: g["ruolo"] for g in collega(corretti, voti, listone)[0]}
+    candidati = [dict(c, ruolo=correzioni.get(c["id"], c["ruolo"])) for c in _candidati(lega, voti)]
     rosa_ids = set()
     if a_rosa:
         rosa_col, rosa_non = collega(lega.get("rosa") or [], voti, listone)
         motivi += [f"rosa: {g.get('nome')} ({g.get('squadra')}) non collegato ai voti, {g['motivo']}" for g in rosa_non]
-        ruoli = lega.get("ruoli") or {}
-        correzioni = {g["id"]: ruoli[k] for g in rosa_col if (k := chiave(g.get("nome"), g.get("squadra"))) in ruoli}
         rosa_ids = {g["id"] for g in rosa_col}
-        candidati = [dict(c, ruolo=correzioni.get(c["id"], c["ruolo"])) for c in candidati]
     per_id = {c["id"]: c for c in candidati}
     assoluta = _con_nomi(ottimo.migliore(lega, candidati), per_id, voti_id)
     rosa = _con_nomi(ottimo.migliore(lega, [c for c in candidati if c["id"] in rosa_ids]), per_id, voti_id) if a_rosa else None
@@ -290,6 +321,8 @@ def calcola(lega: dict, voti: dict, listone: list[dict], consigliata: dict | Non
     else:
         if scelta.get("sigillo") == "alterato":
             motivi.append("sigillo alterato: il risultato della ricerca è cambiato dopo la conclusione")
+        elif scelta.get("sigillo") == "tardivo":
+            motivi.append("sigillo apposto dopo la scadenza")
         elif scelta.get("sigillo") != "integro":
             motivi.append("ricerca senza sigillo: impronta non registrata alla conclusione")
         forme = scelta["risultato"].get("formazioni") or {}
@@ -469,13 +502,19 @@ def salva_schierata(base: Path, lega_id: str, stagione: str, giornata: int, f: d
             break
         except FileExistsError:
             k += 1
-    scrivi_json(g / f"schierata-v{k}.json", f)
+    try:
+        scrivi_json(g / f"schierata-v{k}.json", f)
+    except BaseException:
+        (g / f"schierata-v{k}.json").unlink(missing_ok=True)  # niente versione vuota lasciata indietro
+        raise
     return k
 
 
 def schierata(base: Path, lega_id: str, stagione: str, giornata: int) -> dict | None:
     g = _cartella_giornata(base, lega_id, stagione, giornata)
-    numeri = _numeri(g, _SCHIERATA)
-    if not numeri:
-        return None
-    return json.loads((g / f"schierata-v{numeri[-1]}.json").read_text(encoding="utf-8"))
+    for k in reversed(_numeri(g, _SCHIERATA)):  # l'ultima leggibile
+        try:
+            return json.loads((g / f"schierata-v{k}.json").read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+            continue
+    return None

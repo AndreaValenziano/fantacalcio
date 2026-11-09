@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from consigliere.ricerca import (carica_ia, chiudi_ricerca, crea_ricerca, elenco_ricerche,
-                                 ricerca_in_corso, scrivi_script, sigillo, stato_ricerca)
+                                 fatto_il, ricerca_in_corso, scrivi_script, sigillo, stato_ricerca)
 from tests.aiuti import lega_prova, listone_prova, risultato_valido
 
 ORA = datetime(2026, 11, 13, 18, 0, 0, tzinfo=timezone(timedelta(hours=1)))
@@ -203,6 +203,17 @@ class TestRicerca(unittest.TestCase):
         self.assertIsNotNone(datetime.fromisoformat(r["sigillato_il"]).tzinfo)
         self.assertEqual(sigillo(self.base, "pensionati", c.name), r)
         self.assertIsNone(sigillo(self.base, "pensionati", "20260101-000000"))
+
+    def test_fatto_il_chiusa_e_risultato_scritto_dopo(self):
+        c = self.nuova()
+        self.scrivi(c, risultato_valido("grossa"), fatto=False)
+        chiudi_ricerca(c)
+        t_chiusa, t_risultato = ORA.timestamp(), (ORA + timedelta(hours=2)).timestamp()
+        os.utime(c / "CHIUSA", (t_chiusa, t_chiusa))
+        os.utime(c / "risultato.json", (t_risultato, t_risultato))
+        self.assertEqual(datetime.fromisoformat(fatto_il(c)), ORA + timedelta(hours=2))
+        os.utime(c / "risultato.json", (t_chiusa - 60, t_chiusa - 60))
+        self.assertEqual(datetime.fromisoformat(fatto_il(c)), ORA)
 
     def test_sigillo_solo_se_pronta(self):
         c = self.nuova()

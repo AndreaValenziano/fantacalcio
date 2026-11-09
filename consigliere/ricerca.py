@@ -7,6 +7,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import threading
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -16,6 +17,7 @@ from consigliere.controllo import chiave, controlla
 QUI = Path(__file__).parent
 PROMPT = "Leggi il file SKILL.md in questa cartella e segui le istruzioni per la richiesta in richiesta.json."
 ID_RICERCA = re.compile(r"^\d{8}-\d{6}(-\d+)?$")
+_BLOCCO_REGISTRO = threading.Lock()
 
 
 def carica_ia() -> list[dict]:
@@ -184,12 +186,20 @@ def impronta(percorso: Path) -> str:
 
 
 def fatto_il(cartella: Path) -> str | None:
-    """Quando la ricerca si è conclusa: ora di FATTO (o di CHIUSA), ISO con fuso."""
+    """Quando la ricerca si è conclusa, ISO con fuso: il più tardi tra FATTO (o CHIUSA) e risultato.json.
+
+    Un risultato scritto dopo FATTO o CHIUSA conta dal momento in cui è stato scritto.
+    """
+    cartella = Path(cartella)
     for nome in ("FATTO", "CHIUSA"):
         try:
-            t = (Path(cartella) / nome).stat().st_mtime
+            t = (cartella / nome).stat().st_mtime
         except FileNotFoundError:
             continue
+        try:
+            t = max(t, (cartella / "risultato.json").stat().st_mtime)
+        except FileNotFoundError:
+            pass
         return datetime.fromtimestamp(t).astimezone().isoformat(timespec="seconds")
     return None
 
@@ -198,9 +208,14 @@ def sigilla(cartella: Path) -> dict:
     """Aggiunge al registro (solo in coda) l'impronta di una ricerca conclusa, una volta sola."""
     cartella = Path(cartella)
     base, lega_id, rid = cartella.parents[2], cartella.parent.name, cartella.name
-    esistente = sigillo(base, lega_id, rid)
-    if esistente is not None:
-        return esistente
+    with _BLOCCO_REGISTRO:  # due interrogazioni contemporanee non scrivono due righe
+        esistente = sigillo(base, lega_id, rid)
+        if esistente is not None:
+            return esistente
+        return _aggiungi_sigillo(cartella, base, lega_id, rid)
+
+
+def _aggiungi_sigillo(cartella: Path, base: Path, lega_id: str, rid: str) -> dict:
     riga = {"ricerca": rid, "lega": lega_id, "fatto_il": fatto_il(cartella),
             "sigillato_il": datetime.now().astimezone().isoformat(timespec="seconds"),
             "sha256_risultato": impronta(cartella / "risultato.json"),
