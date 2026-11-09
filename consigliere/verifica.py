@@ -327,6 +327,8 @@ def calcola(lega: dict, voti: dict, listone: list[dict], consigliata: dict | Non
             motivi.append("sigillo alterato: il risultato della ricerca è cambiato dopo la conclusione")
         elif scelta.get("sigillo") == "tardivo":
             motivi.append("sigillo apposto dopo la scadenza")
+        elif scelta.get("sigillo") == "storico":
+            motivi.append("previsione storica FantaLab (congelata in git), non sigillata dal registro")
         elif scelta.get("sigillo") != "integro":
             motivi.append("ricerca senza sigillo: impronta non registrata alla conclusione")
         forme = scelta["risultato"].get("formazioni") or {}
@@ -423,6 +425,8 @@ def report_md(dati: dict) -> str:
     if dati.get("dopo_scadenza"):
         r.append(f"- Dopo la scadenza (non contano): {', '.join(dati['dopo_scadenza'])}")
     r.append(f"- Versione del codice: {dati.get('versione')}")
+    if dati.get("sezioni_extra"):
+        r += ["", "## Note", ""] + dati["sezioni_extra"]
     return "\n".join(r) + "\n"
 
 
