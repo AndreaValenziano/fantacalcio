@@ -300,7 +300,7 @@ Regole di `calcola` (spec, sezioni 3–4):
 - Produces:
   - `verifica.abbina_fantalab(slug: str, voti: dict) -> list[dict]` (candidati: `wesley_roma` → nome compatto che inizia con `wesley` e squadra che inizia con `roma`; `maignan` → solo nome)
   - `verifica.formazione_fantalab(previsione: dict, abbinamenti: dict[str, str]) -> dict` (forma di `valuta`: titolari e panchina nell'ordine P, D, C, A; capitano `previsione["capitano"]`, vice `previsione["vicecapitano"]`)
-  - `python3 -m consigliere.verifica --fantalab <cartella fantalab> --giornata <n> [--cartella <base>]`: usa l'ultima copia dei voti (o la scarica, chiedendo conferma su terminale); G11 → abbina gli slug di `stagioni/2026-27/G11/previsione_macchina.json` (casi ambigui o assenti chiesti con `input()`, risposte salvate in `<base>/fantalab/abbinamenti.json`), valuta con le regole di `consigliere/modelli/libera.json` e salva in `verifiche/fantalab/2026-27/G11/`; G10 → perfetta assoluta, confronto con 125 e con l'undici di `BENCHMARK_PROVVISORIO.md` (elencato nel report come testo), salvataggio in `verifiche/fantalab/2026-27/G10/`. Non scrive mai dentro `<cartella fantalab>`.
+  - `python3 -m consigliere.verifica_fantalab --fantalab <cartella fantalab> --giornata <n> [--cartella <base>]`: usa l'ultima copia dei voti (o la scarica, chiedendo conferma su terminale); G11 → abbina gli slug di `stagioni/2026-27/G11/previsione_macchina.json` (casi ambigui o assenti chiesti con `input()`, risposte salvate in `<base>/abbinamenti/fantalab.json`), valuta con le regole di `consigliere/modelli/libera.json` e salva in `verifiche/fantalab/2026-27/G11/`; G10 → perfetta assoluta, confronto con 125 e con l'undici di `BENCHMARK_PROVVISORIO.md` (elencato nel report come testo), salvataggio in `verifiche/fantalab/2026-27/G10/`. Non scrive mai dentro `<cartella fantalab>`.
 
 - [ ] **Step 1: Scrivere i test:** `test_abbina_slug` (con squadra, senza, ambiguo → 2 candidati); `test_formazione_fantalab` (dalla vera `previsione_macchina.json` con abbinamenti finti → 11 titolari, 7 riserve, capitano e vice); `test_cli_non_scrive_in_fantalab` (copia temporanea di `fantalab/`, impronte di tutti i file prima e dopo uguali, con voti sintetici e `input` simulato).
 - [ ] **Step 2: Eseguire** → FAIL.
@@ -372,6 +372,6 @@ Contenuto (spec, sezione 4):
 **Files:**
 - Modify: `CLAUDE.md` (stato del repository), `fantalab/` **no**.
 
-- [ ] **Step 1: Download reale una tantum** (dichiarato all'utente): `python3 -m consigliere.verifica --fantalab fantalab --giornata 10` e `--giornata 11` con `--cartella` di prova; annotare esito HTTP, numero giocatori, `completezza`, percentuale `fv_coerente`, casi incoerenti.
+- [ ] **Step 1: Download reale una tantum** (dichiarato all'utente): `python3 -m consigliere.verifica_fantalab --fantalab fantalab --giornata 10` e `--giornata 11` con `--cartella` di prova; annotare esito HTTP, numero giocatori, `completezza`, percentuale `fv_coerente`, casi incoerenti.
 - [ ] **Step 2: Riportare all'utente** totale perfetta G10 contro 125 e verifica della previsione G11, con lo stato e i motivi. Non dichiarare `CERTIFICATO` se i motivi lo impediscono.
 - [ ] **Step 3: Aggiornare `CLAUDE.md`** (stato del repository: verifica implementata, cosa resta della spec "Fuori da questa spec") e commit `git commit -m "docs: CLAUDE.md aggiornato alla verifica della giornata"`.

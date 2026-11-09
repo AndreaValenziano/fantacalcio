@@ -73,7 +73,7 @@ Ogni altro URL è rifiutato prima della richiesta.
 
 **Download:** solo su azione della persona; una richiesta alla volta, almeno 3 secondi tra due richieste, timeout 30 secondi, User-Agent `ConsiglioFormazione/<versione>`, un solo tentativo. Errore di rete, HTTP diverso da 200 o pagina senza la tabella attesa: messaggio che spiega il motivo e propone di salvare la pagina dal browser e caricarla.
 
-**Archivio:** `~/ConsiglioFormazione/fonti/<tipo>/<chiave>/<AAAAMMGG-HHMMSS>.html` più `.json` con URL, orario ISO con fuso, origine (`scaricata` / `caricata_a_mano`), SHA-256 dell'HTML, versione del lettore, riepilogo dei dati letti. Scritture atomiche, nessuna sovrascrittura; `<chiave>` è `<stagione>-G<nn>` per i voti, `listone` per le quotazioni.
+**Archivio:** `~/ConsiglioFormazione/fonti/<tipo>/<chiave>/<AAAAMMGG-HHMMSS>.html` più `.json` con URL, orario ISO con fuso, origine (`scaricata` / `caricata_a_mano`), SHA-256 dell'HTML, versione del lettore, riepilogo dei dati letti. Scritture atomiche, nessuna sovrascrittura; `<chiave>` è `<stagione>-<giornata>` per i voti (per esempio `2026-27-11`), `listone` per le quotazioni.
 
 **Lettura dei voti** (solo colonna Redazione Fantacalcio): per giocatore `id`, `nome`, `squadra`, `ruolo` (`P/D/C/A`), `voto` (numero o `null` per SV), `fv_pubblicato`, `ammonito`, `espulso`, eventi `gol`, `gol_subiti`, `autogol`, `rigori_segnati`, `rigori_sbagliati`, `rigori_parati`, `assist`, `player_of_the_match`. Voti con virgola decimale. Per partita: squadre e data.
 
@@ -158,9 +158,9 @@ Su insiemi piccoli (rosa, 18 scelti) si usa l'enumerazione completa. Parità: si
 
 ## 5. G10 e G11 di FantaLab
 
-Comando una tantum `python3 -m consigliere.verifica --fantalab <percorso fantalab> --giornata <n>`, che legge senza scrivere in `fantalab/`:
+Comando una tantum `python3 -m consigliere.verifica_fantalab --fantalab <percorso fantalab> --giornata <n> [--cartella <base>]`, che legge senza scrivere in `fantalab/`:
 
-- **G11:** abbina gli id di `previsione_macchina.json` (abbreviazioni come `wesley_roma`) ai giocatori della pagina dei voti; i casi ambigui vengono chiesti alla persona; l'abbinamento si salva in `~/ConsiglioFormazione/fantalab/abbinamenti.json`. Poi verifica la previsione sulle regole della lega libera (capitano `malen`, vice `calo`).
+- **G11:** abbina gli id di `previsione_macchina.json` (abbreviazioni come `wesley_roma`) ai giocatori della pagina dei voti; i casi ambigui vengono chiesti alla persona; l'abbinamento si salva in `<base>/abbinamenti/fantalab.json` (`<base>` è `~/ConsiglioFormazione` se non si indica `--cartella`). Poi verifica la previsione sulle regole della lega libera (capitano `malen`, vice `calo`).
 - **G10:** perfetta assoluta con i voti completi, confrontata con i 125 punti di `BENCHMARK_PROVVISORIO.md`; il report dice se il benchmark è confermato o corretto e perché.
 
 I report vanno in `~/ConsiglioFormazione/verifiche/fantalab/…`; aggiungerli al registro di FantaLab è una scelta manuale della persona.
