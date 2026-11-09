@@ -53,10 +53,13 @@ def crea_ricerca(base: Path, lega: dict, giocatori: list[dict], ia: dict, stile:
     python = sys.executable
     shutil.copyfile(QUI / "skill" / "SKILL.md", cartella / "SKILL.md")
     shutil.copyfile(QUI / "controllo.py", cartella / "controlla.py")
-    scrivi_json(cartella / "richiesta.json", {
+    richiesta = {
         "lega": lega, "listone": _listone_della_lega(lega, giocatori), "stile": stile, "ia": ia["id"],
         "creata_il": ora.isoformat(timespec="seconds"),
-        "comando_controllo": f'"{python}" controlla.py richiesta.json risultato.json'})
+        "comando_controllo": f'"{python}" controlla.py richiesta.json risultato.json'}
+    # La copia del programma sta fuori dalla cartella in cui lavora l'IA, che non può modificarla.
+    scrivi_json(_copia_richiesta(cartella), richiesta)
+    scrivi_json(cartella / "richiesta.json", richiesta)
     scrivi_script(cartella, ia, python, sys.platform)
     return cartella
 
@@ -99,6 +102,14 @@ def avvia_terminale(script: Path, sistema: str) -> None:
         subprocess.Popen([terminale, "--", "bash", str(script)], shell=False)
 
 
+def _copia_richiesta(cartella: Path) -> Path:
+    return cartella.parent / f"{cartella.name}.richiesta.json"
+
+
+def esiste_ricerca(cartella: Path) -> bool:
+    return cartella.is_dir() and _copia_richiesta(cartella).exists()
+
+
 def chiudi_ricerca(cartella: Path) -> None:
     (Path(cartella) / "CHIUSA").write_text("chiusa dalla pagina", encoding="utf-8")
 
@@ -117,7 +128,7 @@ def _scadenza(risultato: dict, lega: dict) -> str | None:
 
 def stato_ricerca(cartella: Path) -> dict:
     cartella = Path(cartella)
-    richiesta = json.loads((cartella / "richiesta.json").read_text(encoding="utf-8"))
+    richiesta = json.loads(_copia_richiesta(cartella).read_text(encoding="utf-8"))
     s = {"id": cartella.name, "stato": "in_corso", "avviata_il": richiesta.get("creata_il"),
          "ia": richiesta.get("ia"), "stile": richiesta.get("stile"), "errori": [], "risultato": None, "scadenza": None}
     if not _finita(cartella):
@@ -139,8 +150,8 @@ def _cartelle(base: Path, lega_id: str) -> list[Path]:
     radice = cartella_lega(base, lega_id)
     if not radice.exists():
         return []
-    return sorted((c for c in radice.iterdir() if c.is_dir() and ID_RICERCA.match(c.name)
-                   and (c / "richiesta.json").exists()), key=lambda c: c.name, reverse=True)
+    return sorted((c for c in radice.iterdir() if ID_RICERCA.match(c.name) and esiste_ricerca(c)),
+                  key=lambda c: c.name, reverse=True)
 
 
 def ricerca_in_corso(base: Path, lega_id: str) -> Path | None:

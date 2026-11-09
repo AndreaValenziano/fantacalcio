@@ -10,7 +10,7 @@ from urllib.parse import unquote, urlsplit
 from consigliere.archivio import Archivio, ArchivioDanneggiato, campi_mancanti, controlla_id
 from consigliere.listone import ListoneNonValido, abbina, leggi_xlsx, verifica_rosa
 from consigliere.ricerca import (avvia_terminale, carica_ia, cartella_lega, chiudi_ricerca, controlla_id_ricerca,
-                                 crea_ricerca, elenco_ricerche, ricerca_in_corso, stato_ricerca)
+                                 crea_ricerca, elenco_ricerche, esiste_ricerca, ricerca_in_corso, stato_ricerca)
 
 WEB = Path(__file__).parent / "web"
 STATICI = {"/": ("index.html", "text/html; charset=utf-8"),
@@ -205,7 +205,7 @@ def crea_server(base: Path, porta: int = 8765, avvia=avvia_terminale) -> Threadi
 
         def _cartella(self, lega_id, rid):
             c = cartella_lega(base, lega_id) / controlla_id_ricerca(rid)
-            if not (c / "richiesta.json").exists():
+            if not esiste_ricerca(c):
                 raise Errore(404, "Ricerca non trovata.")
             return c
 

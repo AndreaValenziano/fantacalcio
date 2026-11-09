@@ -153,6 +153,31 @@ class TestRicerca(unittest.TestCase):
         self.assertEqual([x["id"] for x in e], [b.name, a.name])
         self.assertEqual([x["stato"] for x in e], ["in_corso", "pronto"])
 
+    def test_ia_non_puo_riscrivere_le_regole_nella_cartella(self):
+        c = self.nuova()
+        r = risultato_valido("grossa")
+        r["formazioni"]["rosa"]["modulo"] = "3-6-1"
+        q = json.loads((c / "richiesta.json").read_text(encoding="utf-8"))
+        q["lega"]["moduli"].append("3-6-1")
+        (c / "richiesta.json").write_text(json.dumps(q), encoding="utf-8")
+        self.scrivi(c, r)
+        self.assertEqual(stato_ricerca(c)["stato"], "errore")
+
+    def test_richiesta_cancellata_dalla_cartella_non_rompe_lo_stato(self):
+        c = self.nuova()
+        self.scrivi(c, risultato_valido("grossa"))
+        (c / "richiesta.json").unlink()
+        self.assertEqual(stato_ricerca(c)["stato"], "pronto")
+        self.assertEqual([x["id"] for x in elenco_ricerche(self.base, "grossa")], [c.name])
+
+    def test_claude_puo_scrivere_solo_il_risultato_con_regole_separate(self):
+        voci = {x["id"]: x for x in json.loads((Path(__file__).resolve().parent.parent / "consigliere" / "ia.json").read_text(encoding="utf-8"))}
+        a = voci["claude"]["argomenti"]
+        self.assertIn("Write(./risultato.json)", a)
+        self.assertIn("Bash({controllo})", a)
+        self.assertFalse(any("./**" in x and x.startswith(("Write", "Edit")) for x in a))
+        self.assertFalse(any("," in x for x in a if x.startswith(("Read", "Write", "Bash", "WebFetch"))))
+
     def test_id_con_percorso_rifiutato(self):
         with self.assertRaises(ValueError):
             elenco_ricerche(self.base, "../x")

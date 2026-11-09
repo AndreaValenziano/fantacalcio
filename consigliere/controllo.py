@@ -59,7 +59,7 @@ def _link_errori(nome, link) -> list[str]:
     for u in link:
         try:
             parti = urlsplit(u if isinstance(u, str) else "")
-            host = (parti.hostname or "").lower()
+            host = (parti.hostname or "").lower().rstrip(".")
         except ValueError:
             parti, host = None, ""
         if any(host == d or host.endswith("." + d) for d in DOMINI_VIETATI):
@@ -190,6 +190,18 @@ def _controlla(richiesta: dict, risultato: dict) -> list[str]:
         elif conf > 0 and not link:
             e.append(f"Scheda di {nome}: confidenza {conf} senza link alle fonti")
         e += _link_errori(nome, link)
+
+    esclusi = risultato.get("esclusi", [])
+    if not isinstance(esclusi, list) or not all(
+            isinstance(x, dict) and isinstance(x.get("nome"), str) and isinstance(x.get("motivo", ""), str) for x in esclusi):
+        e.append('esclusi deve essere un elenco di {"nome": ..., "motivo": ...}')
+    fonti = risultato.get("fonti_non_lette", [])
+    if not isinstance(fonti, list) or not all(isinstance(x, str) for x in fonti):
+        e.append("fonti_non_lette deve essere un elenco di indirizzi")
+    else:
+        e += [x.replace("Scheda di fonti_non_lette:", "fonti_non_lette:") for x in _link_errori("fonti_non_lette", fonti)]
+    if not isinstance(risultato.get("differenza_piu_grande", ""), str):
+        e.append("differenza_piu_grande deve essere un testo")
 
     rosa_lega = {chiave(g["nome"], g["squadra"]) for g in lega.get("rosa") or []}
     for etichetta in ("rosa", "assoluta"):

@@ -160,6 +160,12 @@ CASI = [
     ("link_a_lega", "grossa", link_a_leghe_fantacalcio, "lega"),
     ("link_a_api_lega", "grossa", link_a_apileague, "lega"),
     ("data_illeggibile", "grossa", lambda r: r.update(prima_partita="sabato"), "prima_partita"),
+    ("link_a_lega_con_punto_finale", "grossa", lambda r: _scheda_primo_titolare(r).update(link=["http://leghe.fantacalcio.it./x"]), "lega"),
+    ("fonte_non_letta_di_una_lega", "grossa", lambda r: r.update(fonti_non_lette=["https://leghe.fantacalcio.it/x"]), "lega"),
+    ("fonte_non_letta_javascript", "grossa", lambda r: r.update(fonti_non_lette=["javascript:alert(1)"]), "link"),
+    ("esclusi_non_elenco", "grossa", lambda r: r.update(esclusi="nessuno"), "esclusi"),
+    ("esclusi_con_null", "grossa", lambda r: r.update(esclusi=[None]), "esclusi"),
+    ("differenza_non_testo", "grossa", lambda r: r.update(differenza_piu_grande=["x"]), "differenza"),
     ("rosa_mancante", "grossa", lambda r: r["formazioni"].pop("rosa"), "rosa"),
 ]
 
