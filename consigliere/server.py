@@ -5,9 +5,11 @@ import threading
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
+from consigliere import fonti, pagine, verifica
 from consigliere.archivio import Archivio, ArchivioDanneggiato, campi_mancanti, controlla_id
+from consigliere.controllo import controlla_formazione
 from consigliere.listone import ListoneNonValido, abbina, leggi_xlsx, verifica_rosa
 from consigliere.ricerca import (avvia_terminale, carica_ia, cartella_lega, chiudi_ricerca, controlla_id_ricerca,
                                  crea_ricerca, elenco_ricerche, esiste_ricerca, ricerca_in_corso, stato_ricerca)
@@ -18,6 +20,7 @@ STATICI = {"/": ("index.html", "text/html; charset=utf-8"),
            "/style.css": ("style.css", "text/css; charset=utf-8")}
 MAX_LISTONE = 10 * 1024 * 1024
 MAX_JSON = 2 * 1024 * 1024
+MAX_PAGINA = fonti.MAX_BYTE
 STILI = ("sicuri", "rischio")
 
 
@@ -31,8 +34,9 @@ def _script(cartella: Path) -> Path:
     return cartella / ("avvia.bat" if sys.platform == "win32" else "avvia.command")
 
 
-def crea_server(base: Path, porta: int = 8765, avvia=avvia_terminale) -> ThreadingHTTPServer:
+def crea_server(base: Path, porta: int = 8765, avvia=avvia_terminale, scaricatore=None) -> ThreadingHTTPServer:
     base = Path(base)
+    scaricatore = scaricatore or fonti.Scaricatore()  # uno solo: rispetta la pausa tra pagine aperte
     archivio = Archivio(base)
     blocco = threading.Lock()
 
@@ -86,6 +90,107 @@ def crea_server(base: Path, porta: int = 8765, avvia=avvia_terminale) -> Threadi
                 chiudi_ricerca(cartella)
                 raise Errore(500, f"Non riesco ad aprire il terminale: {e}")
             return {"id": cartella.name}
+
+    def stagione_giornata(stagione, giornata):
+        try:
+            g = int(giornata)
+            verifica._cartella_giornata(base, "x", stagione, g)  # stessi controlli dell'archivio
+        except (TypeError, ValueError):
+            raise Errore(400, "Stagione (AAAA-AA) o giornata (1-38) non valida.")
+        return stagione, g
+
+    def acquisisci(funzione, *args):
+        try:
+            return funzione(*args)
+        except fonti.FonteNonAccessibile as e:
+            raise Errore(502, str(e))
+        except pagine.PaginaNonValida as e:
+            raise Errore(400, str(e))
+
+    def fonte_voti(corpo_html, corpo_json, query):
+        if corpo_html is not None:
+            stagione, giornata = query.get("stagione", [None])[0], query.get("giornata", [None])[0]
+        else:
+            stagione, giornata = corpo_json.get("stagione"), corpo_json.get("giornata")
+        stagione, giornata = stagione_giornata(stagione, giornata)
+        r = acquisisci(fonti.acquisisci_voti, base, stagione, giornata, corpo_html, scaricatore)
+        out = {"meta": r["meta"], "giocatori": len(r["voti"]["giocatori"]),
+               "mancanze": pagine.completezza(r["voti"]), "differenze": r["differenze"]}
+        if r.get("nota"):
+            out["nota"] = r["nota"]
+        return out
+
+    def fonte_listone(corpo_html):
+        r = acquisisci(fonti.acquisisci_listone, base, corpo_html, scaricatore)
+        with blocco:
+            archivio.salva_listone(r["giocatori"], r["meta"].get("origine", "scaricata"))
+        return {"numero": len(r["giocatori"]), "meta": r["meta"]}
+
+    def voti_giornata(stagione, giornata):
+        ultima = fonti.ultima(base, "voti", f"{stagione}-{giornata}")
+        if ultima is None:
+            return None, None
+        try:
+            return ultima[0], pagine.leggi_voti(ultima[1])
+        except pagine.PaginaNonValida as e:
+            raise Errore(409, f"L'ultima copia dei voti non è leggibile ({e}): scaricala di nuovo.")
+
+    def leggi_verifica(lega_id, stagione, giornata):
+        lega_o_404(lega_id)
+        stagione, giornata = stagione_giornata(stagione, giornata)
+        elenco = verifica.versioni(base, lega_id, stagione, giornata)
+        ultima = None
+        for v in reversed(elenco):
+            try:
+                ultima = json.loads((verifica._cartella_giornata(base, lega_id, stagione, giornata) / f"v{v['k']}"
+                                     / "verifica.json").read_text(encoding="utf-8"))
+                break
+            except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+                continue
+        meta, _ = voti_giornata(stagione, giornata)
+        return {"versioni": elenco, "ultima": ultima, "schierata": verifica.schierata(base, lega_id, stagione, giornata),
+                "voti": meta}
+
+    def nuova_verifica(lega_id, stagione, giornata):
+        with blocco:
+            lega = lega_o_404(lega_id)
+            stagione, giornata = stagione_giornata(stagione, giornata)
+            meta, voti = voti_giornata(stagione, giornata)
+            if voti is None:
+                raise Errore(409, "Scarica prima i voti della giornata.")
+            g = giocatori()
+            if not g:
+                raise Errore(409, "Carica prima il listone.")
+            cons = verifica.consigliata(base, lega_id, giornata, verifica.scadenza(voti, lega))
+            dati = verifica.calcola(lega, voti, g, cons, verifica.schierata(base, lega_id, stagione, giornata),
+                                    meta_voti=meta)
+            cartella = verifica.salva(base, lega_id, stagione, giornata, dati)
+            return {"versione": int(cartella.name[1:]), "dati": json.loads((cartella / "verifica.json").read_text("utf-8"))}
+
+    def nuova_schierata(lega_id, stagione, giornata, corpo):
+        lega = lega_o_404(lega_id)
+        stagione, giornata = stagione_giornata(stagione, giornata)
+        g = giocatori()
+        if not g:
+            raise Errore(409, "Carica prima il listone.")
+        panchina_testo = corpo.get("panchina") or []
+        if not isinstance(panchina_testo, list) or not all(isinstance(x, str) for x in panchina_testo):
+            raise Errore(400, "La panchina deve essere un elenco di testi.")
+        tit = abbina(str(corpo.get("testo") or ""), g)
+        pan = abbina("\n".join(panchina_testo), g)
+        ambigui, non_trovati = tit["ambigui"] + pan["ambigui"], tit["non_trovati"] + pan["non_trovati"]
+        if ambigui or non_trovati:
+            e = Errore(409, "Alcuni nomi non sono stati riconosciuti con certezza: correggili.")
+            e.dettagli = {"ambigui": ambigui, "non_trovati": non_trovati}
+            raise e
+        f = {"modulo": corpo.get("modulo"), "titolari": tit["trovati"], "panchina": pan["trovati"],
+             "capitano": corpo.get("capitano") or None, "vice": corpo.get("vice") or None, "switch": None}
+        errori = controlla_formazione(f, lega, g)
+        if errori:
+            e = Errore(409, "La formazione schierata non rispetta le regole della lega: " + "; ".join(errori))
+            e.dettagli = {"errori": errori}
+            raise e
+        return {"versione": verifica.salva_schierata(base, lega_id, stagione, giornata, f)}
 
     class Gestore(BaseHTTPRequestHandler):
         server_version = "Consigliere"
@@ -152,7 +257,7 @@ def crea_server(base: Path, porta: int = 8765, avvia=avvia_terminale) -> Threadi
             except Errore as e:
                 if e.stato == 413:
                     self.close_connection = True
-                return self._json(e.stato, {"errore": e.messaggio})
+                return self._json(e.stato, {"errore": e.messaggio} | getattr(e, "dettagli", {}))
             except ValueError:
                 return self._json(404, {"errore": "Non trovato."})
             except ArchivioDanneggiato as e:
@@ -172,6 +277,19 @@ def crea_server(base: Path, porta: int = 8765, avvia=avvia_terminale) -> Threadi
                         raise Errore(400, str(e))
                     archivio.salva_listone(g)
                     return {"numero": len(g)}
+                case "POST", ["fonti", "voti"]:
+                    query = parse_qs(urlsplit(self.path).query)
+                    if "stagione" in query or "giornata" in query:
+                        return fonte_voti(self._corpo(MAX_PAGINA), None, query)
+                    return fonte_voti(None, self._corpo_json(), query)
+                case "POST", ["fonti", "listone"]:
+                    return fonte_listone(self._corpo(MAX_PAGINA) or None)
+                case "GET", ["verifica", lega_id, stagione, giornata]:
+                    return leggi_verifica(lega_id, stagione, giornata)
+                case "POST", ["verifica", lega_id, stagione, giornata]:
+                    return nuova_verifica(lega_id, stagione, giornata)
+                case "POST", ["verifica", lega_id, stagione, giornata, "schierata"]:
+                    return nuova_schierata(lega_id, stagione, giornata, self._corpo_json())
                 case "POST", ["leghe"]:
                     corpo = self._corpo_json()
                     try:

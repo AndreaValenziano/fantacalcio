@@ -7,9 +7,35 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from consigliere import fonti
 from consigliere.archivio import Archivio
 from consigliere.server import crea_server
 from tests.aiuti import COMPOSIZIONE, crea_xlsx, listone_prova, risultato_valido
+
+DATI = Path(__file__).resolve().parent / "dati"
+Q_VOTI = "stagione=2026-27&giornata=11"
+V11 = "/api/verifica/prova/2026-27/11"
+
+
+class _Risposta:
+    def __init__(self, corpo, url):
+        self.corpo, self.url = corpo, url
+
+    def read(self, n=-1):
+        return self.corpo
+
+    def getcode(self):
+        return 200
+
+    def geturl(self):
+        return self.url
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
 
 IA_FINTE = [{"id": "claude", "nome": "Claude", "comando": "claude", "argomenti": ["{prompt}"], "avviso": None,
              "garantita": True, "disponibile": True},
@@ -34,7 +60,10 @@ class TestServer(unittest.TestCase):
         p = mock.patch("consigliere.server.carica_ia", return_value=[dict(x) for x in IA_FINTE])
         p.start()
         self.addCleanup(p.stop)
-        self.srv = crea_server(self.base, porta=0, avvia=avvia)
+        self.html = (DATI / "voti_ridotta.html").read_bytes()
+        self.rete = lambda r, timeout=None: _Risposta(self.html, r.full_url)
+        finto = fonti.Scaricatore(apri=lambda r, timeout=None: self.rete(r, timeout), dormi=lambda s: None)
+        self.srv = crea_server(self.base, porta=0, avvia=avvia, scaricatore=finto)
         self.porta = self.srv.server_address[1]
         threading.Thread(target=self.srv.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True).start()
 
@@ -195,6 +224,142 @@ class TestServer(unittest.TestCase):
         s = self.json(self.chiama("POST", f"/api/ricerche/prova/{id_}/chiudi"))
         self.assertEqual(s["stato"], "errore")
         self.assertEqual(self.post_ricerca().status, 200)
+
+    def copie_voti(self):
+        return list((self.base / "fonti" / "voti").rglob("*.html"))
+
+    def test_voti_scaricati(self):
+        r = self.chiama("POST", "/api/fonti/voti", {"stagione": "2026-27", "giornata": 11})
+        self.assertEqual(r.status, 200, r.dati)
+        d = self.json(r)
+        self.assertEqual(d["meta"]["origine"], "scaricata")
+        self.assertGreater(d["giocatori"], 0)
+        self.assertEqual(d["differenze"], [])
+        self.assertIn("mancanze", d)
+        self.assertEqual(len(self.copie_voti()), 1)
+
+    def test_voti_caricati_a_mano(self):
+        r = self.chiama("POST", f"/api/fonti/voti?{Q_VOTI}", self.html)
+        self.assertEqual(r.status, 200, r.dati)
+        self.assertEqual(self.json(r)["meta"]["origine"], "caricata_a_mano")
+        self.assertEqual(len(self.copie_voti()), 1)
+
+    def test_voti_giornata_diversa_dalla_pagina(self):
+        r = self.chiama("POST", "/api/fonti/voti?stagione=2026-27&giornata=10", self.html)
+        self.assertEqual(r.status, 400)
+        self.assertEqual(self.copie_voti(), [])
+
+    def test_voti_stagione_o_giornata_non_valide(self):
+        for q in ("stagione=../x&giornata=11", "stagione=2026-27&giornata=39", "stagione=2026-27&giornata=a"):
+            self.assertEqual(self.chiama("POST", f"/api/fonti/voti?{q}", self.html).status, 400, q)
+        self.assertEqual(self.chiama("POST", "/api/fonti/voti", {"stagione": "2026-27"}).status, 400)
+
+    def test_voti_fonte_non_accessibile(self):
+        def giu(r, timeout=None):
+            raise OSError("rete assente")
+        self.rete = giu
+        r = self.chiama("POST", "/api/fonti/voti", {"stagione": "2026-27", "giornata": 11})
+        self.assertEqual(r.status, 502)
+        self.assertIn("Salva la pagina", self.json(r)["errore"])
+
+    def test_voti_pagina_troppo_grande(self):
+        with mock.patch("consigliere.server.MAX_PAGINA", 1000):
+            r = self.chiama("POST", f"/api/fonti/voti?{Q_VOTI}", b"x" * 2000)
+        self.assertEqual(r.status, 413)
+
+    def test_voti_non_utf8(self):
+        r = self.chiama("POST", f"/api/fonti/voti?{Q_VOTI}", b"<html>\xff\xfe</html>")
+        self.assertEqual(r.status, 400)
+
+    def test_listone_dal_sito_e_a_mano(self):
+        self.html = (DATI / "quotazioni_ridotta.html").read_bytes()
+        r = self.chiama("POST", "/api/fonti/listone")
+        self.assertEqual(r.status, 200, r.dati)
+        n = self.json(r)["numero"]
+        self.assertGreater(n, 0)
+        self.assertEqual(self.json(self.chiama("GET", "/api/stato"))["listone"]["numero"], n)
+        self.assertEqual(Archivio(self.base).listone()["origine"], "scaricata")
+        r = self.chiama("POST", "/api/fonti/listone", self.html)
+        self.assertEqual(self.json(r)["meta"]["origine"], "caricata_a_mano")
+        self.assertEqual(Archivio(self.base).listone()["origine"], "caricata_a_mano")
+
+    def test_verifica_senza_voti(self):
+        self.prepara()
+        r = self.chiama("POST", V11)
+        self.assertEqual(r.status, 409)
+        self.assertIn("Scarica prima i voti", self.json(r)["errore"])
+        g = self.json(self.chiama("GET", V11))
+        self.assertEqual((g["versioni"], g["ultima"], g["schierata"], g["voti"]), ([], None, None, None))
+
+    def test_verifica_crea_versioni(self):
+        self.prepara()
+        self.assertEqual(self.chiama("POST", f"/api/fonti/voti?{Q_VOTI}", self.html).status, 200)
+        for k in (1, 2):
+            r = self.chiama("POST", V11)
+            self.assertEqual(r.status, 200, r.dati)
+            self.assertEqual(self.json(r)["versione"], k)
+        g = self.json(self.chiama("GET", V11))
+        self.assertEqual(len(g["versioni"]), 2)
+        self.assertEqual(g["ultima"]["versione_verifica"], 2)
+        self.assertEqual(g["voti"]["origine"], "caricata_a_mano")
+
+    def test_verifica_percorso_non_valido(self):
+        self.prepara()
+        self.assertEqual(self.chiama("GET", "/api/verifica/prova/2026-27/99").status, 400)
+        self.assertEqual(self.chiama("GET", "/api/verifica/prova/xx/11").status, 400)
+        self.assertEqual(self.chiama("GET", "/api/verifica/inesistente/2026-27/11").status, 404)
+        self.assertEqual(self.chiama("GET", "/api/verifica/..%2Fx/2026-27/11").status, 404)
+
+    def corpo_schierata(self, lega, modulo="3-4-3"):
+        per = {r: [g for g in lega["rosa"] if g["ruolo"] == r] for r in "PDCA"}
+        d, c, a = (int(x) for x in modulo.split("-"))
+        tit = per["P"][:1] + per["D"][:d] + per["C"][:c] + per["A"][:a]
+        pan = lega["panchina"]
+        resto = [g for r in "PDCA" for g in [x for x in per[r] if x not in tit][:pan[r]]]
+        nomi = lambda gg: [f"{g['nome']} {g['squadra']}" for g in gg]
+        return {"testo": "\n".join(nomi(tit)), "modulo": modulo, "panchina": nomi(resto),
+                "capitano": tit[-1]["nome"], "vice": tit[-2]["nome"]}
+
+    def test_schierata_salvata_e_usata(self):
+        lega = self.prepara()
+        r = self.chiama("POST", V11 + "/schierata", self.corpo_schierata(lega))
+        self.assertEqual(r.status, 200, r.dati)
+        self.assertEqual(self.json(r), {"versione": 1})
+        self.assertEqual(len(self.json(self.chiama("GET", V11))["schierata"]["titolari"]), 11)
+
+    def test_schierata_con_errori_di_regole(self):
+        lega = self.prepara()
+        corpo = self.corpo_schierata(lega) | {"modulo": "9-9-9"}
+        r = self.chiama("POST", V11 + "/schierata", corpo)
+        self.assertEqual(r.status, 409)
+        self.assertTrue(self.json(r)["errori"])
+
+    def test_schierata_ambigua(self):
+        lega = self.prepara()
+        a = self.chiama("POST", "/api/listone", xlsx_prova(listone_prova() + [
+            {"nome": "D01 Rossi", "squadra": "ZZZ", "ruolo": "D"}]))
+        self.assertEqual(a.status, 200)
+        corpo = self.corpo_schierata(lega) | {"testo": "D01 Rossi"}
+        r = self.chiama("POST", V11 + "/schierata", corpo)
+        self.assertEqual(r.status, 409, r.dati)
+        d = self.json(r)
+        self.assertEqual(d["ambigui"][0]["testo"], "D01 Rossi")
+        self.assertGreaterEqual(len(d["ambigui"][0]["opzioni"]), 2)
+
+    def test_schierata_nome_non_trovato(self):
+        lega = self.prepara()
+        r = self.chiama("POST", V11 + "/schierata", self.corpo_schierata(lega) | {"testo": "Nessuno Qui"})
+        self.assertEqual(r.status, 409)
+        self.assertEqual(self.json(r)["non_trovati"], ["Nessuno Qui"])
+
+    def test_host_estraneo_verifica(self):
+        self.prepara()
+        for metodo, p, c in (("POST", "/api/fonti/voti", {"stagione": "2026-27", "giornata": 11}),
+                             ("POST", "/api/fonti/listone", None), ("GET", V11, None), ("POST", V11, None),
+                             ("POST", V11 + "/schierata", {})):
+            self.assertEqual(self.chiama(metodo, p, c, headers={"Host": "evil.example"}).status, 403, p)
+            self.assertEqual(self.chiama(metodo, p, c, headers={"Origin": "http://evil.example"}).status, 403, p)
+        self.assertEqual(self.copie_voti(), [])
 
     def test_pagina_servita(self):
         r = self.chiama("GET", "/")

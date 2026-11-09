@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -68,6 +69,19 @@ class TestArchivio(unittest.TestCase):
         self.assertFalse(self.a.avviso_accettato())
         self.a.accetta_avviso()
         self.assertTrue(Archivio(self.base).avviso_accettato())
+
+    def test_avviso_vecchio_da_riaccettare(self):
+        (self.base / "avviso.json").write_text('{"accettato_il": "2026-01-01T10:00:00+01:00"}')
+        self.assertFalse(self.a.avviso_accettato())
+        self.a.accetta_avviso()
+        self.assertTrue(self.a.avviso_accettato())
+        self.assertEqual(json.loads((self.base / "avviso.json").read_text())["versione"], 2)
+
+    def test_listone_con_origine(self):
+        self.a.salva_listone([{"nome": "Thuram", "squadra": "Inter", "ruolo": "A"}])
+        self.assertEqual(self.a.listone()["origine"], "xlsx")
+        self.a.salva_listone([], origine="scaricata")
+        self.assertEqual(self.a.listone()["origine"], "scaricata")
 
     def test_listone_salvato_con_data(self):
         self.assertIsNone(self.a.listone())

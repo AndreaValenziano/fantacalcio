@@ -9,6 +9,7 @@ from pathlib import Path
 
 MODELLI = Path(__file__).parent / "modelli"
 ID_VALIDO = re.compile(r"^[a-z0-9-]{1,40}$")
+VERSIONE_AVVISO = 2  # 2: l'avviso copre anche il download delle pagine di fantacalcio.it
 CAMPI_OBBLIGATORI = ("moduli", "panchina", "sostituzioni", "switch", "capitano", "modificatore_difesa", "bonus")
 
 
@@ -92,17 +93,22 @@ class Archivio:
         return lega
 
     def avviso_accettato(self) -> bool:
-        return (self.base / "avviso.json").exists()
+        p = self.base / "avviso.json"
+        if not p.exists():
+            return False
+        dati = leggi_json(p)
+        v = dati.get("versione") if isinstance(dati, dict) else None
+        return isinstance(v, int) and not isinstance(v, bool) and v >= VERSIONE_AVVISO
 
     def accetta_avviso(self) -> None:
-        scrivi_json(self.base / "avviso.json", {"accettato_il": _adesso()})
+        scrivi_json(self.base / "avviso.json", {"accettato_il": _adesso(), "versione": VERSIONE_AVVISO})
 
     def listone(self) -> dict | None:
         p = self.base / "listone.json"
         return leggi_json(p) if p.exists() else None
 
-    def salva_listone(self, giocatori: list[dict]) -> None:
-        scrivi_json(self.base / "listone.json", {"importato_il": _adesso(), "giocatori": giocatori})
+    def salva_listone(self, giocatori: list[dict], origine: str = "xlsx") -> None:
+        scrivi_json(self.base / "listone.json", {"importato_il": _adesso(), "origine": origine, "giocatori": giocatori})
 
 
 def _adesso() -> str:
