@@ -262,6 +262,23 @@ class TestCli(unittest.TestCase):
 
 
 
+class TestRiferimentiSoloNomi(unittest.TestCase):
+    def test_vice_oggetto_uguale_al_capitano_rifiutato(self):
+        r = risultato_valido("grossa")
+        f = r["formazioni"]["rosa"]
+        cap = next(g for g in f["titolari"] if g["nome"] == f["capitano"])
+        f["vice"] = {"nome": cap["nome"], "squadra": cap["squadra"]}
+        errori = controlla(richiesta_prova("grossa"), r)
+        self.assertTrue(any("vice" in e for e in errori), errori)
+
+    def test_capitano_oggetto_rifiutato(self):
+        r = risultato_valido("grossa")
+        f = r["formazioni"]["rosa"]
+        cap = next(g for g in f["titolari"] if g["nome"] == f["capitano"])
+        f["capitano"] = {"nome": cap["nome"], "squadra": cap["squadra"]}
+        self.assertTrue(any("capitano" in e for e in controlla(richiesta_prova("grossa"), r)))
+
+
 class TestControllaFormazione(unittest.TestCase):
     def test_controlla_formazione_pubblica(self):
         lega, listone = lega_prova("grossa"), listone_prova()

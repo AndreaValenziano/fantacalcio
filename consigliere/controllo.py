@@ -70,12 +70,7 @@ def _link_errori(nome, link) -> list[str]:
 
 
 def _per_nome(giocatori, nome):
-    """Il giocatore indicato per nome, o per {"nome", "squadra"}; None se assente o ambiguo."""
-    if isinstance(nome, dict):
-        k = chiave(nome.get("nome"), nome.get("squadra"))
-        trovati = [g for g in giocatori if chiave(g.get("nome"), g.get("squadra")) == k]
-    else:
-        trovati = [g for g in giocatori if g.get("nome") == nome]
+    trovati = [g for g in giocatori if g.get("nome") == nome]
     return trovati[0] if len(trovati) == 1 else None
 
 

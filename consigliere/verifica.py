@@ -188,7 +188,7 @@ def _con_nomi(r: dict | None, candidati: dict, voti_id: dict) -> dict | None:
     return r | {"giocatori": dettaglio}
 
 
-def _misura(lega, voti, voti_id, candidati, listone, f_ris, etichetta, motivi) -> dict | None:
+def _misura(lega, voti, voti_id, candidati, ruoli_id, listone, f_ris, etichetta, motivi) -> dict | None:
     elenco = (f_ris.get("titolari") or []) + (f_ris.get("panchina") or []) if isinstance(f_ris, dict) else None
     if not isinstance(elenco, list) or not all(isinstance(g, dict) for g in elenco):
         motivi.append(f"{etichetta}: formazione mancante o non leggibile")
@@ -196,6 +196,9 @@ def _misura(lega, voti, voti_id, candidati, listone, f_ris, etichetta, motivi) -
     collegati, non = collega(elenco, voti, listone)
     motivi += [f"{etichetta}: {g.get('nome')} ({g.get('squadra')}) non collegato ai voti, {g['motivo']}" for g in non]
     f = formazione_da(f_ris, collegati)
+    # stessi ruoli delle perfette (pagina o correzione della lega): lo schieramento non può essere negativo
+    for v in f["titolari"] + f["panchina"]:
+        v["ruolo"] = ruoli_id.get(v["id"], v["ruolo"])
     try:
         ottenuto = punteggio.valuta(lega, voti_id, f)
     except (ValueError, KeyError, TypeError) as e:
@@ -299,6 +302,7 @@ def calcola(lega: dict, voti: dict, listone: list[dict], consigliata: dict | Non
                 for k, r in (lega.get("ruoli") or {}).items()]
     correzioni = {g["id"]: g["ruolo"] for g in collega(corretti, voti, listone)[0]}
     candidati = [dict(c, ruolo=correzioni.get(c["id"], c["ruolo"])) for c in _candidati(lega, voti)]
+    ruoli_id = correzioni | {g["id"]: correzioni.get(g["id"], g["ruolo"]) for g in voti.get("giocatori") or []}
     rosa_ids = set()
     if a_rosa:
         rosa_col, rosa_non = collega(lega.get("rosa") or [], voti, listone)
@@ -326,16 +330,16 @@ def calcola(lega: dict, voti: dict, listone: list[dict], consigliata: dict | Non
         elif scelta.get("sigillo") != "integro":
             motivi.append("ricerca senza sigillo: impronta non registrata alla conclusione")
         forme = scelta["risultato"].get("formazioni") or {}
-        mis_c = _misura(lega, voti, voti_id, candidati, listone, forme.get("rosa" if a_rosa else "assoluta"),
+        mis_c = _misura(lega, voti, voti_id, candidati, ruoli_id, listone, forme.get("rosa" if a_rosa else "assoluta"),
                         "consigliata", motivi)
         if mis_c is not None:
-            extra = (_misura(lega, voti, voti_id, candidati, listone, forme.get("assoluta"), "consigliata (assoluta)",
+            extra = (_misura(lega, voti, voti_id, candidati, ruoli_id, listone, forme.get("assoluta"), "consigliata (assoluta)",
                              motivi) if a_rosa else None)
             mis_c["assoluta_ottenuto"] = extra["ottenuto"] if extra else None
     mis_s = None
     if schierata is not None:
         motivi += controlla_formazione(schierata, lega, listone)
-        mis_s = _misura(lega, voti, voti_id, candidati, listone, schierata, "schierata", motivi)
+        mis_s = _misura(lega, voti, voti_id, candidati, ruoli_id, listone, schierata, "schierata", motivi)
 
     motivi = list(dict.fromkeys(motivi))
     stato = "DATI_INCOMPLETI" if mancanze else ("PROVVISORIO" if motivi else "CERTIFICATO")

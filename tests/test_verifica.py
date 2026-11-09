@@ -299,8 +299,11 @@ class TestCalcola(unittest.TestCase):
         ruoli = {g["nome"]: g["ruolo"] for p in (m["perfetta_assoluta"], m["consigliata"]["migliore_tra_18"])
                  for g in p["giocatori"]}
         self.assertEqual(ruoli[x["nome"]], "C")
+        ottenuto = {g["nome"]: g["ruolo"] for g in m["consigliata"]["ottenuto"]["giocatori"]}
+        self.assertEqual(ottenuto[x["nome"]], "C")  # anche l'ottenuto usa il ruolo corretto, non quello dichiarato
         rg = dati["regret"]["consigliata"]
         self.assertGreaterEqual(rg["selezione"], 0)
+        self.assertGreaterEqual(rg["schieramento"], 0)
         self.assertAlmostEqual(rg["limite_rosa"] + rg["selezione"] + rg["schieramento"], rg["totale"])
 
 
