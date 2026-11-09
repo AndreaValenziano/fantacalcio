@@ -118,10 +118,6 @@ class TestPaginaVera(unittest.TestCase):
         self.assertGreaterEqual(perc, 95)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 def p(i, ruolo="C", voto=6.0, **k):
     """Giocatore di prova con id i."""
     k.setdefault("fv_pubblicato", voto)
@@ -193,9 +189,9 @@ class TestValuta(unittest.TestCase):
         L = lega("grossa")
         titolari = tutti(T433, 6.0)
         for i in range(8):
-            titolari[i + 1] = p(i + 2, titolari[i + 1]["ruolo"], None)  # tutti tranne P e un A... 8 SV
+            titolari[i + 1] = p(i + 2, titolari[i + 1]["ruolo"], None)  # 8 SV: D x4, C x3, A x1
         titolari[0] = p(1, "P", 6.0)
-        # 8 titolari SV (D x4, C x3, A x1) e panchina con riserve per tutti: il limite 7 e' la restrizione
+        # panchina con riserve per tutti: il limite di 7 cambi e' la restrizione
         panchina = [p(21, "P"), p(22, "D"), p(23, "D"), p(24, "D"), p(25, "D"), p(26, "C"), p(27, "C"),
                     p(28, "C"), p(29, "A"), p(30, "A")]
         f = formazione(T433, ["P", "D", "D", "D", "D", "C", "C", "C", "A", "A"])
@@ -203,8 +199,8 @@ class TestValuta(unittest.TestCase):
         r = punteggio.valuta(L, voti_di(*titolari, *panchina), f)
         self.assertEqual(len(r["cambi"]), 7)
         sv_in_campo = [g for g in r["giocatori"] if g["in_campo"] and g["voto"] is None]
-        self.assertEqual(len(sv_in_campo), 1)
-        self.assertAlmostEqual(r["totale"] - r["modificatore"]["bonus"] - r["capitano"]["bonus"], 61.0)  # 10 x 6 + porta inviolata
+        self.assertEqual([g["id"] for g in sv_in_campo], [9])  # l'attaccante, ultimo nell'ordine P-D-C-A
+        self.assertAlmostEqual(r["totale"] - r["modificatore"]["bonus"] - r["capitano"]["bonus"], 61.0)  # 10 giocatori a 6 + porta inviolata
 
     def _due_sv(self, voto_d_panchina, voto_c_panchina):
         L = dict(lega("libera"), sostituzioni={"numero": 1, "tipo": "traditional"})
@@ -297,14 +293,15 @@ class TestValuta(unittest.TestCase):
 
     def test_modificatore_dopo_cambi(self):
         L = lega("libera")
-        titolari = tutti(T433, 6.0)  # media 6 -> fascia 2
+        titolari = tutti(T433, 6.0)  # senza il cambio i difensori sarebbero 3: nessun modificatore
         titolari[1] = p(2, "D", None)
         panchina = [p(21, "P"), p(22, "D", 7.0), p(23, "D"), p(24, "C"), p(25, "C"), p(26, "A"), p(27, "A")]
         r = punteggio.valuta(L, voti_di(*titolari, *panchina), formazione(T433, B))
         # media (6 + 7 + 6 + 6) / 4 = 6.25 -> fascia 3
         self.assertAlmostEqual(r["modificatore"]["media"], 6.25)
         self.assertEqual(r["modificatore"]["bonus"], 3)
-        self.assertAlmostEqual(r["totale"], 60 + 1 + 7 + 3)
+        # 10 giocatori a 6 (portiere compreso) + sostituto a 7 + 1 porta inviolata + 3 di modificatore
+        self.assertAlmostEqual(r["totale"], 10 * 6 + 7 + 1 + 3)
 
     def test_modificatore_disattivo(self):
         L = lega("pensionati")
@@ -342,3 +339,60 @@ class TestValuta(unittest.TestCase):
         g = {x["id"]: x for x in r["giocatori"]}[11]
         self.assertIsNone(g["voto"])
         self.assertEqual(g["nome"], "11")
+
+    def test_ordine_oltre_otto_sv(self):
+        L = lega("grossa")  # 7 cambi
+        titolari = [p(1, "P", 6.0)] + [p(i, r, None) for i, r in zip(range(2, 11), "DDDDCCCAA")] + [p(11, "A", 6.0)]
+        ruoli_b = "PDDDDCCCAA"
+        panchina = [p(21 + i, r, 9.0 if r == "A" else 6.0) for i, r in enumerate(ruoli_b)]
+        f = formazione("PDDDDCCCAAA", ruoli_b)
+        r = punteggio.valuta(L, voti_di(*titolari, *panchina), f)
+        self.assertEqual(len(r["cambi"]), 7)
+        self.assertIn("ordine dei cambi da verificare", r["motivi"])
+        self.assertEqual(r["stato"], "PROVVISORIO")
+
+    def test_ordine_non_verificabile(self):
+        L = lega("f1")  # hybrid: l'ordine conta; con tetto abbassato le sequenze sono troppe per la prova
+        f = formazione("PDDDDCCCAAA", "PDC")
+        voti = voti_di(*[p(i + 1, r, None) for i, r in enumerate("PDDDDCCCAAA")], p(21, "P"), p(22, "D"), p(23, "C"))
+        voti_p = punteggio._MAX_ORDINI
+        punteggio._MAX_ORDINI = 2
+        try:
+            r = punteggio.valuta(L, voti, f)
+        finally:
+            punteggio._MAX_ORDINI = voti_p
+        self.assertIn("ordine dei cambi non verificato", r["motivi"])
+        self.assertEqual(r["stato"], "PROVVISORIO")
+
+    def test_vice_non_in_campo(self):
+        L = lega("libera")
+        titolari = tutti(T433, 6.0)
+        titolari[8] = p(9, "A", None)  # capitano SV, sostituito
+        panchina = [p(21, "P"), p(22, "D"), p(23, "D"), p(24, "C"), p(25, "C"), p(26, "A", 7.0), p(27, "A", 7.0)]
+        # il vice e' la riserva 27: la 26 entra al posto del capitano, il vice resta in panchina
+        r = punteggio.valuta(L, voti_di(*titolari, *panchina), formazione(T433, B, capitano=9, vice=27))
+        self.assertEqual(r["capitano"], {"id": 9, "bonus": 0, "da": None})
+        self.assertNotIn("subentro del vice da verificare", r["motivi"])
+
+    def test_vice_bonus_zero_senza_motivo(self):
+        L = lega("libera")
+        titolari = tutti(T433, 6.0)
+        titolari[8] = p(9, "A", None)
+        titolari[9] = p(10, "A", 5.0)  # vice con voto sotto la soglia: bonus 0
+        panchina = [p(21, "P"), p(22, "D"), p(23, "D"), p(24, "C"), p(25, "C"), p(26, "A", None), p(27, "A", None)]
+        r = punteggio.valuta(L, voti_di(*titolari, *panchina), formazione(T433, B, capitano=9, vice=10))
+        self.assertEqual(r["capitano"], {"id": 10, "bonus": 0, "da": "vice"})
+        self.assertEqual(r["motivi"], [])
+        self.assertEqual(r["stato"], "ESATTO")
+
+    def test_switch_id_inesistente(self):
+        L = lega("pensionati")
+        titolari = tutti(T433, 6.0)
+        panchina = tutti(B, 6.0, 21)
+        f = formazione(T433, B, switch={"titolare": 9, "riserva": 99})
+        with self.assertRaisesRegex(ValueError, "Switch"):
+            punteggio.valuta(L, voti_di(*titolari, *panchina), f)
+
+
+if __name__ == "__main__":
+    unittest.main()

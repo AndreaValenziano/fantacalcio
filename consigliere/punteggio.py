@@ -3,6 +3,9 @@
 Funzioni pure, solo libreria standard.
 """
 
+from collections import Counter
+from math import factorial
+
 # Bonus con cui è calcolato il FV pubblicato dalla pagina (senza porta inviolata e Player of the match).
 BONUS_STANDARD = {
     "gol": 3, "rigore_segnato": 3, "rigore_parato": 3, "rigore_sbagliato": -3, "assist": 1,
@@ -107,13 +110,12 @@ def fasce_monotone(fasce: list[float]) -> bool:
 # ---------------------------------------------------------------------------------------------
 # Valore di una formazione
 # ---------------------------------------------------------------------------------------------
-import itertools
-
 _ORDINE_RUOLI = {"P": 0, "D": 1, "C": 2, "A": 3}
 _MOTIVO_HYBRID = "cambio di ruolo diverso (regola Hybrid da verificare)"
 _MOTIVO_ORDINE = "ordine dei cambi da verificare"
 _MOTIVO_VICE = "subentro del vice da verificare"
-_MAX_PERMUTAZIONI = 8  # oltre 8 titolari senza voto (8! = 40320 ordini) non si prova ogni ordine
+_MOTIVO_ORDINE_NON_VERIFICATO = "ordine dei cambi non verificato"
+_MAX_ORDINI = 5000  # sequenze di ruoli distinte provate al massimo
 
 
 def _modulo_di(ruoli: list[str]) -> str:
@@ -209,15 +211,17 @@ def _valuta_ordine(lega: dict, voti: dict, f: dict, ordine: list[int]) -> dict:
     capitano = {"id": cap_id, "bonus": 0, "da": None}
     bonus_vice = 0
     if cap_cfg and cap_cfg.get("attivo", True):
-        v_cap = _vp(lega, voti, cap_id) if cap_id is not None else None
-        v_vice = _vp(lega, voti, vice_id) if vice_id is not None else None
+        in_campo_id = {x["id"] for x in campo}  # il bonus spetta solo a chi e' in campo con un voto
+        v_cap = _vp(lega, voti, cap_id) if cap_id in in_campo_id else None
+        v_vice = _vp(lega, voti, vice_id) if vice_id in in_campo_id else None
         if v_cap is not None:
             capitano.update(bonus=bonus_capitano(v_cap, cap_cfg), da="capitano")
             beneficiato, voto_b = cap_id, v_cap
         elif cap_id is not None and v_vice is not None:
             bonus_vice = bonus_capitano(v_vice, cap_cfg)
             capitano.update(id=vice_id, bonus=bonus_vice, da="vice")
-            motivi.append(_MOTIVO_VICE)
+            if bonus_vice:
+                motivi.append(_MOTIVO_VICE)
             beneficiato, voto_b = vice_id, v_vice
         else:
             beneficiato = voto_b = None
@@ -237,10 +241,41 @@ def _con_switch(f: dict) -> dict | None:
         return None
     titolari = list(f["titolari"])
     panchina = list(f["panchina"])
-    i = next(k for k, r in enumerate(titolari) if r["id"] == s["titolare"])
-    j = next(k for k, r in enumerate(panchina) if r["id"] == s["riserva"])
+    i = next((k for k, r in enumerate(titolari) if r["id"] == s["titolare"]), None)
+    j = next((k for k, r in enumerate(panchina) if r["id"] == s["riserva"]), None)
+    if i is None:
+        raise ValueError(f"Switch: il titolare {s['titolare']} non e' tra i titolari")
+    if j is None:
+        raise ValueError(f"Switch: la riserva {s['riserva']} non e' in panchina")
     titolari[i], panchina[j] = panchina[j], titolari[i]
     return {**f, "titolari": titolari, "panchina": panchina, "switch": None}
+
+
+def _sequenze_distinte(conteggi: Counter, lunghezza: int):
+    """Tutte le sequenze distinte di ruoli con i conteggi dati."""
+    if lunghezza == 0:
+        yield ()
+        return
+    for ruolo in sorted(conteggi):
+        if conteggi[ruolo]:
+            conteggi[ruolo] -= 1
+            for resto in _sequenze_distinte(conteggi, lunghezza - 1):
+                yield (ruolo,) + resto
+            conteggi[ruolo] += 1
+
+
+def _ordine_da_ruoli(f: dict, mancanti: list[int], sequenza: tuple) -> list[int]:
+    """Traduce una sequenza di ruoli negli indici dei titolari (dentro il ruolo, nell'ordine dei titolari).
+
+    Con i cambi per ruolo l'ordine fra titolari dello stesso ruolo non cambia il totale: contano solo i ruoli.
+    """
+    per_ruolo = {x: [i for i in mancanti if f["titolari"][i]["ruolo"] == x] for x in "PDCA"}
+    prossimo = Counter()
+    ordine = []
+    for ruolo in sequenza:
+        ordine.append(per_ruolo[ruolo][prossimo[ruolo]])
+        prossimo[ruolo] += 1
+    return ordine
 
 
 def valuta(lega: dict, voti: dict, f: dict) -> dict:
@@ -252,11 +287,19 @@ def valuta(lega: dict, voti: dict, f: dict) -> dict:
     sost = lega["sostituzioni"]
     limite = sost.get("numero")
     ordine_conta = len(mancanti) > 1 and (sost.get("tipo") == "hybrid" or (limite is not None and len(mancanti) > limite))
-    if ordine_conta and len(mancanti) <= _MAX_PERMUTAZIONI:
-        for perm in itertools.permutations(mancanti):
-            if abs(_valuta_ordine(lega, voti, f, list(perm))["totale"] - r["totale"]) > _EPS:
-                r["motivi"].append(_MOTIVO_ORDINE)
-                break
+    if ordine_conta:
+        conteggi = Counter(f["titolari"][i]["ruolo"] for i in mancanti)
+        n_ordini = factorial(len(mancanti))
+        for c in conteggi.values():
+            n_ordini //= factorial(c)
+        if n_ordini > _MAX_ORDINI:
+            r["motivi"].append(_MOTIVO_ORDINE_NON_VERIFICATO)
+        else:
+            for sequenza in _sequenze_distinte(conteggi, len(mancanti)):
+                ordine = _ordine_da_ruoli(f, mancanti, sequenza)
+                if abs(_valuta_ordine(lega, voti, f, ordine)["totale"] - r["totale"]) > _EPS:
+                    r["motivi"].append(_MOTIVO_ORDINE)
+                    break
 
     s = _con_switch(f)
     r["con_switch"] = valuta(lega, voti, s) if s else None
