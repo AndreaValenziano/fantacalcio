@@ -795,7 +795,10 @@ function vistaVerifica() {
           unica("Perfetta assoluta", m.perfetta_assoluta),
           m.perfetta_rosa !== null && m.perfetta_rosa !== undefined && unica("Perfetta della rosa", m.perfetta_rosa),
           el("tr", {}, el("td", { testo: "Migliore tra i 18" }), cella((x) => x.migliore_tra_18 && x.migliore_tra_18.totale)),
-          el("tr", {}, el("td", { testo: "Ottenuto" }), cella((x) => x.ottenuto.totale)))),
+          el("tr", {}, el("td", { testo: "Ottenuto" }), cella((x) => x.ottenuto.totale)),
+          // capitano senza voto: le due ipotesi, il subentro del vice va verificato nell'app della lega
+          colonne.some((c) => m[c] && m[c].ottenuto.totale_senza_vice !== null && m[c].ottenuto.totale_senza_vice !== undefined) &&
+            el("tr", {}, el("td", { testo: "Senza il subentro del vice" }), cella((x) => x.ottenuto.totale_senza_vice)))),
       el("p", { class: "tenue piccolo", testo: "La \"perfetta\" è la migliore formazione possibile a giornata finita (una tra le migliori a pari punti). \"Migliore tra i 18\" è la migliore che si poteva fare con gli stessi 18 giocatori scelti." }),
       el("h3", { testo: "Dove si sono persi i punti" }),
       el("table", {},
@@ -816,7 +819,8 @@ function vistaVerifica() {
           el("td", { testo: g.nome }), el("td", { testo: g.ruolo }), el("td", { testo: punti(g.voto) }), el("td", { testo: punti(g.fv) }),
           el("td", { testo: `${g.titolare ? "titolare" : "riserva"}${g.uscito ? ", uscito" : g.entrato ? ", entrato" : g.in_campo ? ", in campo" : ""}` }))))),
       el("p", { class: "piccolo", testo: `Cambi: ${o.cambi.map((c) => `${nomi[c.esce] || c.esce} → ${nomi[c.entra] || c.entra}`).join(", ") || "nessuno"}.` }),
-      el("p", { class: "piccolo", testo: `Modificatore: ${punti(o.modificatore.bonus)}. Capitano: ${nomi[o.capitano.id] || "—"}, bonus ${punti(o.capitano.bonus)}${o.capitano.da === "vice" ? " (dal vice)" : ""}.` }));
+      el("p", { class: "piccolo", testo: `Modificatore: ${punti(o.modificatore.bonus)}. Capitano: ${nomi[o.capitano.id] || "—"}, bonus ${punti(o.capitano.bonus)}${o.capitano.da === "vice" ? " (dal vice)" : ""}.` +
+        (o.totale_senza_vice !== null && o.totale_senza_vice !== undefined ? ` Senza il subentro del vice: ${punti(o.totale_senza_vice)}.` : "") }));
   }
 
   function report(d) {

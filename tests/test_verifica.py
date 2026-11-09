@@ -314,6 +314,19 @@ class TestCalcola(unittest.TestCase):
         self.assertIn("uno degli ottimi", testo)
         self.assertIn("PROVVISORIO", testo)
 
+    def test_capitano_sv_report_con_le_due_ipotesi(self):
+        lega, voti, r = lega_prova("grossa"), voti_prova(), risultato_11("grossa")
+        f = r["formazioni"]["rosa"]
+        pagina = {g["nome"]: g for g in voti["giocatori"]}
+        pagina[f["capitano"]]["voto"] = pagina[f["capitano"]]["fv_pubblicato"] = None
+        pagina[f["vice"]]["voto"] = pagina[f["vice"]]["fv_pubblicato"] = 8.0
+        dati = verifica.calcola(lega, voti, listone_prova(), consigliata_a_mano(r), None)
+        o = dati["misure"]["consigliata"]["ottenuto"]
+        self.assertAlmostEqual(o["totale"] - o["totale_senza_vice"], 2)
+        self.assertIn(f"Senza il subentro del vice: {verifica._f(o['totale_senza_vice'])}", verifica.report_md(dati))
+        dati_ok = verifica.calcola(lega, voti_prova(), listone_prova(), consigliata_a_mano(r), None)
+        self.assertNotIn("Senza il subentro del vice", verifica.report_md(dati_ok))
+
     def test_schierata_non_valida_provvisorio(self):
         f = risultato_11("grossa")["formazioni"]["rosa"]
         f["panchina"][-1] = dict(f["titolari"][-1])

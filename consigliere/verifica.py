@@ -401,6 +401,8 @@ def _dettaglio(titolo: str, mis: dict) -> list[str]:
               f"Modificatore: {_f(o['modificatore']['bonus'])} (media {_f(o['modificatore']['media'])}).",
               f"Capitano: {nomi.get(o['capitano']['id'], o['capitano']['id'] or '—')}, bonus {_f(o['capitano']['bonus'])}"
               + (" (dal vice)." if o["capitano"]["da"] == "vice" else ".")]
+    if o.get("totale_senza_vice") is not None:  # capitano SV: le due ipotesi, il subentro del vice va verificato
+        righe.append(f"Senza il subentro del vice: {_f(o['totale_senza_vice'])} (ottenuto con il vice {_f(o['totale'])}).")
     if o.get("con_switch"):
         righe.append(f"Con lo Switch il totale sarebbe {_f(o['con_switch']['totale'])} (non conteggiato nelle misure).")
     return righe + [""]
@@ -421,6 +423,8 @@ def report_md(dati: dict) -> str:
         if x:
             r += [f"| Migliore tra i 18 della {nome} | {_tot(x['migliore_tra_18'])} |",
                   f"| Ottenuto dalla {nome} | {_tot(x['ottenuto'])} |"]
+            if x["ottenuto"].get("totale_senza_vice") is not None:
+                r.append(f"| Ottenuto dalla {nome} senza il subentro del vice | {_f(x['ottenuto']['totale_senza_vice'])} |")
             if x.get("assoluta_ottenuto"):
                 r.append(f"| Ottenuto dalla migliore assoluta consigliata | {_tot(x['assoluta_ottenuto'])} |")
     r += ["", "## Regret", "", "| Formazione | Totale | Limite della rosa | Selezione | Schieramento |", "|---|---|---|---|---|"]
