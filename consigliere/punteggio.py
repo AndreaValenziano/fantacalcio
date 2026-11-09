@@ -82,12 +82,15 @@ def voto_mezzo(voto: float) -> bool:
     return abs(voto * 2 - round(voto * 2)) < _EPS
 
 
+_NUM_FASCE = 7
 _LIMITI_FASCE = (6.0, 6.25, 6.5, 6.75, 7.0, 7.25)
 
 
 def modificatore(voto_portiere: float | None, voti_difensori: list[float],
                  fasce: list[float]) -> tuple[float | None, float]:
     """(media, bonus): media di portiere e 3 migliori difensori; (None, 0) se mancano i dati."""
+    if len(fasce) != _NUM_FASCE:
+        raise ValueError(f"Le fasce del modificatore devono essere {_NUM_FASCE}, trovate {len(fasce)}")
     if voto_portiere is None or len(voti_difensori) < 4:
         return None, 0
     migliori = sorted(voti_difensori, reverse=True)[:3]
@@ -97,5 +100,5 @@ def modificatore(voto_portiere: float | None, voti_difensori: list[float],
 
 
 def fasce_monotone(fasce: list[float]) -> bool:
-    """Le fasce non decrescono al crescere della media."""
-    return all(a <= b for a, b in zip(fasce, fasce[1:]))
+    """Sono 7 e non decrescono al crescere della media."""
+    return len(fasce) == _NUM_FASCE and all(a <= b for a, b in zip(fasce, fasce[1:]))

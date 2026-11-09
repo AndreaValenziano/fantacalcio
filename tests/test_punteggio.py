@@ -44,6 +44,11 @@ class TestFv(unittest.TestCase):
         self.assertIsNone(punteggio.fv_lega(g, lega("libera")))
         self.assertIsNone(punteggio.fv_lega(None, lega("pensionati")))
 
+    def test_porta_inviolata_solo_portiere(self):
+        for ruolo in "DCA":
+            g = gioc(ruolo=ruolo, voto=6.0, gol_subiti=0)
+            self.assertAlmostEqual(punteggio.fv_lega(g, lega("libera")), 6.0, msg=ruolo)
+
     def test_rigore_segnato_non_doppio(self):
         g = gioc(voto=7.0, gol=0, rigori_segnati=1)
         self.assertAlmostEqual(punteggio.fv_lega(g, lega("libera")), 10.0)
@@ -72,8 +77,9 @@ class TestModificatore(unittest.TestCase):
     def test_modificatore_confini(self):
         f = [1, 2, 3, 4, 5, 6, 6]
         for media, atteso in [(5.99, 1), (6, 2), (6.24, 2), (6.25, 3), (6.5, 4), (6.75, 5), (7, 6), (7.25, 6)]:
-            # portiere = media*4, difensori a zero non servono: si usa 3 difensori uguali
+            # portiere e difensori tutti uguali alla media: la media restituita coincide
             m, b = punteggio.modificatore(media, [media] * 4, f)
+            self.assertAlmostEqual(m, media)
             self.assertEqual(b, atteso, media)
         self.assertEqual(punteggio.modificatore(6.75, [6.75] * 4, [0, 1, 1, 3, 3, 6, 6])[1], 3)
 
@@ -86,6 +92,12 @@ class TestModificatore(unittest.TestCase):
         f = [1, 2, 3, 4, 5, 6, 6]
         self.assertEqual(punteggio.modificatore(7, [7, 7, 7], f), (None, 0))
         self.assertEqual(punteggio.modificatore(None, [7, 7, 7, 7], f), (None, 0))
+
+    def test_fasce_lunghezza_errata(self):
+        with self.assertRaisesRegex(ValueError, "devono essere 7, trovate 5"):
+            punteggio.modificatore(7, [7] * 4, [1, 2, 3, 4, 5])
+        self.assertFalse(punteggio.fasce_monotone([1, 2, 3, 4, 5]))
+        self.assertFalse(punteggio.fasce_monotone([0, 1, 2, 3, 4, 5, 6, 7]))
 
     def test_fasce_monotone(self):
         self.assertTrue(punteggio.fasce_monotone([0, 1, 1, 3, 3, 6, 6]))
