@@ -122,6 +122,21 @@ def _confronto(perfetta: float | None, dichiarato: float | None) -> str:
     return f"Il benchmark di {d} punti non e' raggiunto: la perfetta con le regole libere ottiene {p}."
 
 
+def _controlla_previsione(prev) -> None:
+    if not isinstance(prev, dict):
+        raise ValueError("deve essere un oggetto JSON")
+    for k in ("titolari", "panchina"):
+        gruppi = prev.get(k)
+        if not isinstance(gruppi, dict):
+            raise ValueError(f"manca '{k}' (un oggetto con P, D, C, A)")
+        for r in _RUOLI:
+            if not isinstance(gruppi.get(r), list) or not all(isinstance(x, str) and x for x in gruppi[r]):
+                raise ValueError(f"'{k}.{r}' deve essere un elenco di nomi")
+    for k in ("capitano", "vicecapitano"):
+        if not isinstance(prev.get(k), str) or not prev[k]:
+            raise ValueError(f"'{k}' deve essere un nome")
+
+
 def _lega() -> dict:
     modello = json.loads((MODELLI / "libera.json").read_text(encoding="utf-8"))
     return modello | {"id": LEGA_ID, "nome": "FantaLab"}
@@ -134,14 +149,27 @@ def main(argv=None, *, input_fn=input, scaricatore=None, out=print) -> int:
     p.add_argument("--cartella", type=Path, default=Path.home() / "ConsiglioFormazione")
     a = p.parse_args(argv)
     fl, base = a.fantalab.resolve(), a.cartella.resolve()
-    if base == fl or fl in base.parents:
-        out("La cartella dei dati non puo' stare dentro la cartella fantalab: non si scrive mai li'.")
-        return 2
+    abbinamenti = base / "abbinamenti" / "fantalab.json"
+    for bersaglio in (base, base / "fonti", base / "verifiche", abbinamenti):
+        r = bersaglio.resolve()  # segue i collegamenti simbolici
+        if r == fl or fl in r.parents:
+            out(f"Non si scrive mai dentro la cartella fantalab: {bersaglio} ci porta dentro.")
+            return 2
     giorn = fl / "stagioni" / STAGIONE / f"G{a.giornata:02d}"
     prev_file, bench_file = giorn / "previsione_macchina.json", giorn / "BENCHMARK_PROVVISORIO.md"
     if not prev_file.is_file() and not bench_file.is_file():
         out(f"Niente da verificare in {giorn}: manca previsione_macchina.json e BENCHMARK_PROVVISORIO.md.")
         return 2
+    try:
+        return _esegui(a, fl, base, abbinamenti, input_fn, scaricatore, out)
+    except EOFError:
+        out("Input terminato: risposta non data. Riprova da un terminale interattivo.")
+        return 1
+
+
+def _esegui(a, fl, base, abbinamenti, input_fn, scaricatore, out) -> int:
+    giorn = fl / "stagioni" / STAGIONE / f"G{a.giornata:02d}"
+    prev_file, bench_file = giorn / "previsione_macchina.json", giorn / "BENCHMARK_PROVVISORIO.md"
     try:
         voti, meta = _voti(base, a.giornata, input_fn, scaricatore, out)
     except SystemExit as e:
@@ -155,10 +183,15 @@ def main(argv=None, *, input_fn=input, scaricatore=None, out=print) -> int:
     if prev_file.is_file():
         grezzo = prev_file.read_bytes()
         sha = hashlib.sha256(grezzo).hexdigest()
-        prev = json.loads(grezzo.decode("utf-8"))
+        try:
+            prev = json.loads(grezzo.decode("utf-8"))
+            _controlla_previsione(prev)
+        except (ValueError, TypeError) as e:
+            out(f"previsione_macchina.json non valida: {e}")
+            return 1
         slugs = [s for k in ("titolari", "panchina") for r in _RUOLI for s in (prev.get(k) or {}).get(r, [])]
         slugs += [prev.get("capitano"), prev.get("vicecapitano")]
-        abb = risolvi([s for s in slugs if s], voti, base / "fantalab" / "abbinamenti.json", input_fn, out)
+        abb = risolvi([s for s in slugs if s], voti, abbinamenti, input_fn, out)
         f = formazione_fantalab(prev, abb, {x["id"]: x for x in listone})
         consigliata = {"scelta": {"ricerca": f"FantaLab G{a.giornata:02d} previsione_macchina.json",
                                   "risultato": {"giornata": a.giornata, "formazioni": {"assoluta": f}},

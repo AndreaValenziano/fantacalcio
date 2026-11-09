@@ -148,6 +148,50 @@ class TestCli(unittest.TestCase):
                      input_fn=lambda t="": "s", scaricatore=None, out=lambda *_: None)
         self.assertNotEqual(rc, 0)
 
+    def lancia(self, base, risposte=("s",)):
+        r = list(risposte)
+        return vf.main(["--fantalab", str(self.fl), "--giornata", "11", "--cartella", str(base)],
+                       input_fn=lambda t="": r.pop(0) if r else "",
+                       scaricatore=self.Scaricatore((DATI / "voti_ridotta.html").read_bytes()), out=lambda *_: None)
+
+    def test_base_genitore_di_fantalab_non_scrive_in_fantalab(self):
+        prima = self.impronte()
+        self.lancia(self.dir)  # self.dir contiene fantalab/ come figlio diretto
+        self.assertEqual(prima, self.impronte())
+
+    def test_base_con_fantalab_collegamento_simbolico(self):
+        self.base.mkdir()
+        (self.base / "fantalab").symlink_to(self.fl, target_is_directory=True)
+        prima = self.impronte()
+        self.lancia(self.base)
+        self.assertEqual(prima, self.impronte())
+
+    def test_sottocartelle_collegate_dentro_fantalab_rifiutate(self):
+        for nome in ("verifiche", "fonti", "abbinamenti"):
+            with self.subTest(nome):
+                base = self.dir / f"b-{nome}"
+                base.mkdir()
+                (base / nome).symlink_to(self.fl, target_is_directory=True)
+                prima = self.impronte()
+                self.assertEqual(self.lancia(base), 2)
+                self.assertEqual(prima, self.impronte())
+
+    def test_input_terminato(self):
+        def eof(t=""):
+            raise EOFError
+        rc = vf.main(["--fantalab", str(self.fl), "--giornata", "11", "--cartella", str(self.base)],
+                     input_fn=eof, scaricatore=None, out=lambda *_: None)
+        self.assertEqual(rc, 1)
+
+    def test_previsione_non_valida(self):
+        (self.fl / "stagioni/2026-27/G11/previsione_macchina.json").write_text('{"titolari": {}}', encoding="utf-8")
+        msgs = []
+        rc = vf.main(["--fantalab", str(self.fl), "--giornata", "11", "--cartella", str(self.base)],
+                     input_fn=lambda t="": "s", scaricatore=self.Scaricatore((DATI / "voti_ridotta.html").read_bytes()),
+                     out=msgs.append)
+        self.assertEqual(rc, 1)
+        self.assertTrue(any("non valida" in m for m in msgs))
+
 
 @unittest.skipUnless(VERI[10].exists() and VERI[11].exists(), "pagine vere dei voti assenti")
 class TestVere(unittest.TestCase):
