@@ -1,0 +1,76 @@
+{
+ "id": "libera",
+ "nome": "Scelta libera (FantaLab)",
+ "tipo": "libera",
+ "composizione": null,
+ "moduli": [
+  "4-3-3"
+ ],
+ "panchina": {
+  "tipo": "fissa",
+  "P": 1,
+  "D": 2,
+  "C": 2,
+  "A": 2
+ },
+ "sostituzioni": {
+  "numero": null,
+  "tipo": "traditional"
+ },
+ "switch": "no",
+ "capitano": {
+  "attivo": true,
+  "fasce": [
+   [
+    "<=5.5",
+    0
+   ],
+   [
+    "6",
+    0.5
+   ],
+   [
+    "6.5",
+    1
+   ],
+   [
+    "7",
+    1.5
+   ],
+   [
+    ">=7.5",
+    2
+   ]
+  ]
+ },
+ "modificatore_difesa": {
+  "attivo": true,
+  "fasce": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   6
+  ]
+ },
+ "bonus": {
+  "gol": 3,
+  "rigore_segnato": 3,
+  "rigore_parato": 3,
+  "rigore_sbagliato": -3,
+  "assist": 1,
+  "porta_inviolata": 1,
+  "gol_subito": -1,
+  "autogol": -2,
+  "ammonizione": -0.5,
+  "espulsione": -1,
+  "player_of_the_match": 0
+ },
+ "ammonito_senza_voto": false,
+ "anticipo_minuti": 0,
+ "rosa": [],
+ "ruoli": {},
+ "preferenze": ""
+}

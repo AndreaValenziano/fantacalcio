@@ -1,0 +1,15 @@
+# Metadati audit voti pubblici — G[NN]
+
+- URL voti redazionali Fantacalcio.it: [ ]
+- URL listone Classic ufficiale stagione/giornata: [ ]
+- Data e ora di consultazione (Europa/Roma): [ ]
+- Numero squadre coinvolte e partite concluse: [ ]
+- Numero ID nel listone universo: [ ]
+- Numero righe CSV importate: [ ]
+- Numero VALIDI / SV / dato NON RECUPERATO: [ ]
+- Clean sheet portieri: incluso già nel FV? [SÌ/NO/NON_SAPPIAMO] — normalizzazione: [ ]
+- Altri bonus/malus variabili rispetto al preset redazione: [ ]
+- Regole speciali, rinvii, 6 politici: [ ]
+- Blocchi di accesso, timestamp e interventi manuali: [ ]
+- Stato del calcolo: SUBSET_ONLY / PROVVISORIO / CERTIFICATO
+- Versione dataset e checksum SHA-256: [ ]

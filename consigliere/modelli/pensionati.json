@@ -1,0 +1,59 @@
+{
+ "id": "pensionati",
+ "nome": "Lega pensionati",
+ "tipo": "rosa",
+ "composizione": {
+  "P": 3,
+  "D": 8,
+  "C": 8,
+  "A": 6
+ },
+ "moduli": [
+  "3-4-3",
+  "3-5-2",
+  "4-3-3",
+  "4-4-2",
+  "4-5-1",
+  "5-3-2",
+  "5-4-1"
+ ],
+ "panchina": {
+  "tipo": "minimi",
+  "min": {
+   "P": 2,
+   "D": 3,
+   "C": 3,
+   "A": 3
+  },
+  "max": 14
+ },
+ "sostituzioni": {
+  "numero": null,
+  "tipo": "traditional"
+ },
+ "switch": "plus",
+ "capitano": {
+  "attivo": false
+ },
+ "modificatore_difesa": {
+  "attivo": false
+ },
+ "bonus": {
+  "gol": 3,
+  "rigore_segnato": 3,
+  "rigore_parato": 3,
+  "rigore_sbagliato": -3,
+  "assist": 1,
+  "porta_inviolata": 1,
+  "gol_subito": -1,
+  "autogol": -2,
+  "ammonizione": -0.5,
+  "espulsione": -1,
+  "player_of_the_match": 0.5
+ },
+ "ammonito_senza_voto": true,
+ "anticipo_minuti": 15,
+ "rosa": [],
+ "ruoli": {},
+ "preferenze": ""
+}

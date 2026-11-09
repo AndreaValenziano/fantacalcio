@@ -1,0 +1,22 @@
+{
+  "stagione": "2026-27",
+  "giornata": 11,
+  "tipo": "PREVISIONE_IA_NON_CONFERMATA_COME_GIOCATA",
+  "stato": "CONGELATO_STORICO",
+  "fonte_originale": "PRONOSTICO_ORIGINALE_CONGELATO.md",
+  "capitano": "malen",
+  "vicecapitano": "calo",
+  "titolari": {
+    "P": ["maignan"],
+    "D": ["wesley_roma", "gila", "miranda", "bremer"],
+    "C": ["calo", "rabiot", "mora_roma"],
+    "A": ["malen", "varela", "krstovic"]
+  },
+  "panchina": {
+    "P": ["skorupski"],
+    "D": ["kalulu", "ndicka"],
+    "C": ["isaksen", "pulisic"],
+    "A": ["soule", "thuram"]
+  },
+  "note": "ID trascritti a fini software: per il CSV voti devono essere usati questi stessi ID. Nessuna correzione a nomi/ordine/ruoli rispetto all'originale."
+}
