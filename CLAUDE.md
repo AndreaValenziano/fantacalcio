@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Stato del repository
 
-Il codice non esiste ancora. Ci sono solo design e piano di un **consigliere di formazione Fantacalcio**:
+Il **consigliere di formazione Fantacalcio** è implementato (Task 1–7 del piano). Del Task 8 restano le prove reali: Claude su Mac, Gemini su Windows, controllo degli indirizzi contattati. Il registro delle decisioni prese durante l'implementazione sta in `.superpowers/sdd/2026-11-09-consigliere-formazione/progress.md` (non versionato).
 
 - Spec (approvata): `docs/superpowers/specs/2026-11-09-formazione-fantacalcio-design.md`, con le bozze dell'interfaccia in `bozze-interfaccia/s1–s5.png`.
 - Piano a task (TDD, un commit per task): `docs/superpowers/plans/2026-11-09-consigliere-formazione.md`. Contiene interfacce, formati JSON (lega, `richiesta.json`, `risultato.json`, `ia.json`), tabella API e test da scrivere. **È la fonte di verità per l'implementazione**: leggerlo prima di toccare il codice.
@@ -21,14 +21,14 @@ Python 3.11+ con **sola libreria standard**, HTML/CSS/JS senza librerie, nessuna
 - `consigliere/server.py`: server HTTP solo su `127.0.0.1` (porta 8765, poi una libera), API JSON e file statici di `consigliere/web/`. Controlla `Host` e `Origin`.
 - `consigliere/archivio.py`: leghe, listone e avviso in `~/ConsiglioFormazione/` (fuori dal repo), scritture atomiche.
 - `consigliere/ricerca.py`: per ogni ricerca crea `ricerche/<lega>/<AAAAMMGG-HHMMSS>/` con `richiesta.json`, `SKILL.md`, `controlla.py` e uno script (`.command` / `.bat`), poi apre un **terminale interattivo** con la CLI dell'IA scelta (Claude, Gemini, OpenCode) secondo `consigliere/ia.json`.
-- L'IA lavora in quella cartella, scrive `risultato.json` ed esegue il controllo; `controlla.py` crea `FATTO` quando il risultato è valido o al terzo tentativo. La pagina interroga lo stato ogni 3 secondi e il server **ricontrolla sempre** con la propria `controllo.py`, mai con la copia nella cartella.
+- L'IA lavora in quella cartella, scrive `risultato.json` ed esegue il controllo; `controlla.py` crea `FATTO` quando il risultato è valido o al terzo tentativo. La pagina interroga lo stato ogni 3 secondi e il server **ricontrolla sempre** con la propria `controllo.py` e con la propria copia della richiesta (`<id>.richiesta.json`, fuori dalla cartella dell'IA), mai con i file che l'IA può modificare. "Ho chiuso il terminale" crea `CHIUSA`.
 - `consigliere/controllo.py`: file unico senza import locali, perché viene copiato in ogni ricerca. Verifica moduli, ruoli, rosa, doppioni, panchina, capitano, Switch, schede, link.
-- `consigliere/listone.py`: lettura xlsx con `zipfile` + `xml.etree`, abbinamento dei nomi della rosa senza mai scegliere da solo tra omonimi.
+- `consigliere/listone.py`: lettura xlsx con `zipfile` ed espressioni regolari, **non** `xml.etree`: i Python di Homebrew su questo Mac non importano `pyexpat`. Abbina i nomi della rosa senza mai scegliere da solo tra omonimi e scarta le righe con "Fuori lista".
 - `consigliere/skill/SKILL.md`: metodo, fonti e formato del risultato, unica parte condivisa da tutte le IA.
 
 ## Comandi
 
-Test (da quando esisteranno, con `unittest`):
+Test (`unittest`, nessuna dipendenza):
 
 ```bash
 python3 -m unittest discover -s tests -v
@@ -36,7 +36,11 @@ python3 -m unittest tests.test_controllo -v
 python3 -m unittest tests.test_controllo.NomeClasse.test_nome -v
 ```
 
-Avvio: `python3 -m consigliere` (oppure doppio clic su `avvia.command` / `avvia.bat`).
+Avvio: `python3 -m consigliere` (oppure doppio clic su `avvia.command` / `avvia.bat`). Per provare senza toccare i dati veri: `python3 -m consigliere --cartella <dir temporanea> --porta 8766 --senza-browser`. Non premere "Cerca la formazione" in prova: apre un terminale con una vera IA.
+
+Pacchetto per i fratelli: `git archive -o consigliere-formazione.zip HEAD avvia.command avvia.bat consigliere GUIDA.md`.
+
+Un listone vero (lista calciatori della lega pensionati) sta in `tests/dati/listone_vero.xlsx`, escluso da git; il test relativo viene saltato se manca.
 
 Strumenti FantaLab (dopo l'estrazione, dentro `fantalab/`): `python strumenti/test_ottimizza.py`, `python strumenti/test_confronta_strategie.py`.
 
