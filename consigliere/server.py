@@ -169,8 +169,11 @@ def crea_server(base: Path, porta: int = 8765, avvia=avvia_terminale, scaricator
             if not g:
                 raise Errore(409, "Carica prima il listone.")
             cons = verifica.consigliata(base, lega_id, giornata, verifica.scadenza(voti, lega))
-            dati = verifica.calcola(lega, voti, g, cons, verifica.schierata(base, lega_id, stagione, giornata),
-                                    meta_voti=meta)
+            schierata = verifica.schierata(base, lega_id, stagione, giornata)
+            try:
+                dati = verifica.calcola(lega, voti, g, cons, schierata, meta_voti=meta)
+            except (ValueError, KeyError, TypeError) as e:  # regole della lega incoerenti: non è un "non trovato"
+                raise Errore(500, f"Non riesco a calcolare la verifica: {e}")
             cartella = verifica.salva(base, lega_id, stagione, giornata, dati)
             return {"versione": int(cartella.name[1:]), "dati": json.loads((cartella / "verifica.json").read_text("utf-8"))}
 

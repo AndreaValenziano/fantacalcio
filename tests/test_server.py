@@ -355,6 +355,23 @@ class TestServer(unittest.TestCase):
         self.assertEqual(g["ultima"]["versione_verifica"], 2)
         self.assertEqual(g["voti"]["origine"], "caricata_a_mano")
 
+    def test_verifica_errore_di_calcolo_500(self):
+        self.prepara()
+        percorso = self.base / "leghe" / "prova.json"
+        lega = json.loads(percorso.read_text(encoding="utf-8"))
+        lega["modificatore_difesa"] = {"attivo": True, "fasce": [1, 2, 3]}  # lunghezza sbagliata
+        percorso.write_text(json.dumps(lega), encoding="utf-8")
+        self.assertEqual(self.chiama("POST", f"/api/fonti/voti?{Q_VOTI}", self.html).status, 200)
+        # la pagina ridotta non basta per un modulo completo: il calcolo vero usa una pagina sintetica completa
+        from consigliere import verifica
+        from tests.test_verifica import voti_prova
+        originale = verifica.calcola
+        with mock.patch.object(verifica, "calcola", lambda lega, voti, *a, **k: originale(lega, voti_prova(), *a, **k)):
+            r = self.chiama("POST", V11)
+        self.assertEqual(r.status, 500, r.dati)
+        self.assertTrue(self.json(r)["errore"].startswith("Non riesco a calcolare la verifica: "), r.dati)
+        self.assertFalse((self.base / "verifiche" / "prova" / "2026-27" / "G11" / "v1").exists())
+
     def test_verifica_percorso_non_valido(self):
         self.prepara()
         self.assertEqual(self.chiama("GET", "/api/verifica/prova/2026-27/99").status, 400)
