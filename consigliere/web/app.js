@@ -17,7 +17,9 @@ const DISPONIBILITA = {
   squalificato: "squalificato", sconosciuta: "non trovata",
 };
 const LISTONE_PUBBLICO = "https://www.fantacalcio.it/quotazioni-fantacalcio";
-const AVVISO = "Questo strumento legge pagine pubbliche di fantacalcio.it quando premi \"Cerca la formazione\". " +
+const STAGIONE_PREDEFINITA = "2026-27";
+const AVVISO = "Questo strumento legge pagine pubbliche di fantacalcio.it solo quando premi un pulsante: " +
+  "\"Cerca la formazione\", \"Scarica i voti\", \"Aggiorna dal sito\" (listone) e la lettura delle probabili formazioni. " +
   "I termini d'uso di Fantacalcio vietano l'accesso automatico alle pagine senza autorizzazione scritta e " +
   "prevedono sanzioni fino alla cancellazione di account e leghe. Lo strumento non entra mai in una lega e non " +
   "usa le tue credenziali, ma questo riduce il rischio senza eliminarlo. La decisione di usarlo è tua.";
@@ -31,6 +33,8 @@ const stato = {
   ricerca: null,       // {lega, id}
   scheda: "campo",
   abbinamento: null,
+  vstagione: STAGIONE_PREDEFINITA,
+  vgiornata: 1,
   timer: null,
 };
 
@@ -98,7 +102,12 @@ async function api(metodo, percorso, corpo, grezzo) {
     throw new Error("Il programma non risponde: controlla che la finestra del consigliere sia ancora aperta.");
   }
   const dati = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(dati.errore || `Errore ${r.status}`);
+  if (!r.ok) {
+    const errore = new Error(dati.errore || `Errore ${r.status}`);
+    errore.stato = r.status;
+    errore.dettagli = dati;
+    throw errore;
+  }
   return dati;
 }
 
@@ -153,7 +162,7 @@ function ricordaLega() {
 function disegna() {
   ricordaLega();
   const app = document.getElementById("app");
-  const viste = { leghe: vistaLeghe, regole: vistaRegole, rosa: vistaRosa, corso: vistaCorso, risultato: vistaRisultato };
+  const viste = { leghe: vistaLeghe, regole: vistaRegole, rosa: vistaRosa, verifica: vistaVerifica, corso: vistaCorso, risultato: vistaRisultato };
   app.replaceChildren(...[viste[stato.vista]()].flat(Infinity).filter(Boolean));
   if (!stato.dati.avviso_accettato) app.append(velo());
 }
@@ -225,7 +234,13 @@ function cartaLega(l) {
   avvisi,
   el("div", { class: "riga-pulsanti" },
     l.tipo === "rosa" && el("button", { onclick: fermo(() => vai("rosa", { lega: l.id, abbinamento: null })), testo: "Modifica rosa" }),
-    el("button", { onclick: fermo(() => vai("regole", { lega: l.id })), testo: "Regole" })));
+    el("button", { onclick: fermo(() => vai("regole", { lega: l.id })), testo: "Regole" }),
+    el("button", { onclick: fermo(() => vai("verifica", { lega: l.id })), testo: "Verifica" })));
+}
+
+async function aggiornaStato() {
+  await aggiorna();
+  disegna();
 }
 
 function cartaListone() {
@@ -243,13 +258,43 @@ function cartaListone() {
       } catch (e) { messaggio(e.message, true); ev.target.value = ""; }
     },
   });
+  const dopo = (r, a) => {
+    messaggio(`Listone ${a}: ${r.numero} giocatori.`);
+  };
+  const bottoneSito = el("button", {
+    testo: "Aggiorna dal sito",
+    onclick: async (ev) => {
+      ev.target.disabled = true;
+      try {
+        const r = await api("POST", "/api/fonti/listone");
+        await aggiornaStato();
+        dopo(r, "aggiornato");
+      } catch (e) { messaggio(e.message, true); ev.target.disabled = false; }
+    },
+  });
+  const pagina = el("input", {
+    type: "file", accept: ".html,.htm,text/html",
+    onchange: async (ev) => {
+      const f = ev.target.files[0];
+      if (!f) return;
+      try {
+        const r = await api("POST", "/api/fonti/listone", await f.arrayBuffer(), true);
+        await aggiornaStato();
+        dopo(r, "caricato dalla pagina salvata");
+      } catch (e) { messaggio(e.message, true); ev.target.value = ""; }
+    },
+  });
   return el("section", { class: "carta" },
     el("h2", { testo: "Listone" }),
     l ? el("p", { testo: `${l.numero} giocatori, caricato ${quando(l.importato_il)}.` })
       : el("div", { class: "avviso", testo: "Nessun listone: serve per abbinare la rosa e per cercare la formazione." }),
     el("p", { class: "tenue piccolo" }, "Scaricalo tu dal browser, senza accedere, dalla ",
       link(LISTONE_PUBBLICO, "pagina pubblica delle quotazioni"), " (pulsante \"Scarica\"), oppure usa la lista calciatori della tua lega."),
-    campo(l ? "Carica un listone nuovo" : "Carica il listone (.xlsx)", input));
+    campo(l ? "Carica un listone nuovo" : "Carica il listone (.xlsx)", input),
+    el("p", { class: "tenue piccolo" }, "Oppure lascia che lo scarichi il programma dalla pagina pubblica, solo quando premi il pulsante:"),
+    el("div", { class: "riga-pulsanti" }, bottoneSito),
+    el("p", { class: "tenue piccolo", testo: "Se non riesce, salva la pagina dal browser (\"Pagina web, solo HTML\") e caricala qui sotto." }),
+    campo("Carica la pagina salvata (.html)", pagina));
 }
 
 function cartaNuovaLega() {
@@ -561,6 +606,267 @@ function vistaRosa() {
           testo: a.problema === "cambio_squadra" ? `${a.nome}: ora alla ${a.nuova_squadra}` : `${a.nome}: non è più nel listone`,
         })))),
       l.rosa.length ? tabella : el("p", { class: "tenue", testo: "Ancora vuota." })),
+  ];
+}
+
+// ---------- Verifica della giornata ----------
+
+const STATI_VERIFICA = {
+  CERTIFICATO: ["Certificato", "Tutti i dati sono completi e la ricerca è stata sigillata prima della scadenza.", "ok"],
+  PROVVISORIO: ["Provvisorio", "I numeri ci sono, ma qualcosa non è del tutto certo (vedi i motivi).", "dubbio"],
+  DATI_INCOMPLETI: ["Dati incompleti", "I voti scaricati sono incompleti: le misure sono calcolate su quello che c'è.", "errore"],
+};
+
+const punti = (x) => (x === null || x === undefined ? "—" : String(Math.round(x * 100) / 100).replace(".", ","));
+const urlVoti = (stagione, giornata) => `https://www.fantacalcio.it/voti-fantacalcio-serie-a/${stagione}/${giornata}`;
+const NOMI_ORIGINE = { scaricata: "scaricati dal sito", caricata_a_mano: "caricati a mano" };
+const NOMI_CAMPO_VOTO = {
+  presenza: "presenza", voto: "voto", fv_pubblicato: "fantavoto", ammonito: "ammonizione", espulso: "espulsione", gol: "gol",
+  gol_subiti: "gol subiti", autogol: "autogol", rigori_segnati: "rigori segnati", rigori_sbagliati: "rigori sbagliati",
+  rigori_parati: "rigori parati", assist: "assist", player_of_the_match: "player of the match",
+};
+const valoreVoto = (v) => (v === null || v === undefined ? "—" : typeof v === "boolean" ? (v ? "sì" : "no") : typeof v === "number" ? punti(v) : String(v));
+
+function riepilogoRiga(g) { return `${g.nome} (${g.squadra}, ${g.ruolo})`; }
+
+function vistaVerifica() {
+  const l = legaScelta();
+  if (!l) return [el("button", { class: "indietro", onclick: () => vai("leghe"), testo: "← Le mie leghe" }),
+    el("p", { class: "tenue", testo: "Scegli prima una lega." })];
+  const s = { info: null, errore: null, voti: null, erroreVoti: null, esitoSchierata: null };
+  const cVoti = el("div", {});
+  const cReport = el("div", {});
+  const cSchierata = el("div", {});
+  const stagione = el("input", { type: "text", value: stato.vstagione, maxlength: "7", placeholder: "2026-27", "aria-label": "Stagione" });
+  const giornata = el("input", { type: "number", value: String(stato.vgiornata), min: "1", max: "38", "aria-label": "Giornata" });
+
+  const legge = () => {
+    const st = stagione.value.trim(), g = Number(giornata.value);
+    if (!/^\d{4}-\d{2}$/.test(st) || !Number.isInteger(g) || g < 1 || g > 38) {
+      messaggio("Indica la stagione come 2026-27 e la giornata da 1 a 38.", true);
+      return null;
+    }
+    return { st, g };
+  };
+  const percorso = (x, resto) => `/api/verifica/${encodeURIComponent(l.id)}/${encodeURIComponent(x.st)}/${x.g}${resto || ""}`;
+
+  async function carica() {
+    const x = legge();
+    if (!x) return;
+    stato.vstagione = x.st;
+    stato.vgiornata = x.g;
+    s.errore = null;
+    try { s.info = await api("GET", percorso(x)); } catch (e) { s.info = null; s.errore = e.message; }
+    mostra();
+  }
+
+  // ----- voti -----
+  const esitoVoti = (r) => [
+    el("div", { class: "avviso" }, `Voti salvati: ${r.giocatori} giocatori, ${NOMI_ORIGINE[r.meta.origine] || r.meta.origine || "origine sconosciuta"} ${quando(r.meta.ora)}.`),
+    r.nota && el("div", { class: "avviso", testo: r.nota }),
+    r.mancanze.length > 0 && el("div", { class: "errore-box" }, "I voti sono incompleti:", el("ul", {}, r.mancanze.map((m) => el("li", { testo: m })))),
+    r.differenze.length > 0 ? el("div", { class: "avviso" }, `Rispetto alla copia precedente sono cambiati ${r.differenze.length} dati:`,
+      el("table", {}, el("thead", {}, el("tr", {}, ["Giocatore", "Cosa", "Prima", "Dopo"].map((t) => el("th", { testo: t })))),
+        el("tbody", {}, r.differenze.slice(0, 60).map((d) => el("tr", {},
+          el("td", { testo: d.nome }), el("td", { testo: NOMI_CAMPO_VOTO[d.campo] || d.campo }),
+          el("td", { testo: valoreVoto(d.prima) }), el("td", { testo: valoreVoto(d.dopo) }))))),
+      r.differenze.length > 60 && el("p", { class: "piccolo", testo: `…e altre ${r.differenze.length - 60}.` }))
+      : r.nota ? null : el("p", { class: "tenue piccolo", testo: "Nessuna differenza rispetto alla copia precedente." }),
+  ];
+
+  async function prendiVoti(ev, invia) {
+    const x = legge();
+    if (!x) return;
+    const bottone = ev.target;
+    bottone.disabled = true;
+    s.erroreVoti = null;
+    try {
+      s.voti = await invia(x);
+      await carica();
+    } catch (e) {
+      s.voti = null;
+      s.erroreVoti = { testo: e.message, scaricato: e.stato === 502, x };
+    }
+    bottone.disabled = false;
+    mostraVoti();
+  }
+
+  const scarica = el("button", {
+    testo: "Scarica i voti",
+    onclick: (ev) => prendiVoti(ev, (x) => api("POST", "/api/fonti/voti", { stagione: x.st, giornata: x.g })),
+  });
+  const caricaPagina = el("input", {
+    type: "file", accept: ".html,.htm,text/html",
+    onchange: async (ev) => {
+      const f = ev.target.files[0];
+      if (!f) return;
+      await prendiVoti({ target: ev.target }, async (x) => api("POST",
+        `/api/fonti/voti?stagione=${encodeURIComponent(x.st)}&giornata=${x.g}`, await f.arrayBuffer(), true));
+      ev.target.value = "";
+    },
+  });
+
+  function mostraVoti() {
+    const info = s.info && s.info.voti;
+    const e = s.erroreVoti;
+    cVoti.replaceChildren(...[
+      info ? el("p", { testo: `Voti di questa giornata: ${NOMI_ORIGINE[info.origine] || "origine sconosciuta"} ${quando(info.ora)}.` })
+        : el("div", { class: "avviso", testo: "Per questa giornata non ci sono ancora i voti: scaricali o caricali qui sotto." }),
+      e && el("div", { class: "errore-box" }, el("p", { testo: e.testo }),
+        e.scaricato && el("p", {}, "Puoi aprire la pagina dei voti dal browser, salvarla (\"Salva con nome\", formato \"Pagina web, solo HTML\") e caricarla qui sotto: ",
+          link(urlVoti(e.x.st, e.x.g), urlVoti(e.x.st, e.x.g)))),
+      s.voti && esitoVoti(s.voti),
+    ].flat(Infinity).filter(Boolean));
+  }
+
+  // ----- schierata -----
+  const modulo = el("select", {}, (l.moduli && l.moduli.length ? l.moduli : TUTTI_I_MODULI).map((m) => el("option", { value: m, testo: m })));
+  const titolari = el("textarea", { placeholder: "Gli 11 titolari, uno per riga, ad esempio:\nSommer\nThuram JUV\nDimarco INT" });
+  const panchina = el("textarea", { placeholder: "La panchina, uno per riga, nell'ordine di ingresso" });
+  const capitano = el("input", { type: "text", placeholder: "Es. Lautaro" });
+  const vice = el("input", { type: "text", placeholder: "Es. Thuram" });
+  titolari.style.minHeight = "130px";
+  panchina.style.minHeight = "100px";
+
+  async function salvaSchierata(ev) {
+    const x = legge();
+    if (!x) return;
+    ev.target.disabled = true;
+    s.esitoSchierata = null;
+    try {
+      const r = await api("POST", percorso(x, "/schierata"), {
+        testo: titolari.value, modulo: modulo.value, panchina: panchina.value.split("\n").map((t) => t.trim()).filter(Boolean),
+        capitano: capitano.value.trim(), vice: vice.value.trim(),
+      });
+      messaggio(`Schierata salvata (versione ${r.versione}).`);
+      await carica();
+    } catch (e) {
+      s.esitoSchierata = e;
+    }
+    ev.target.disabled = false;
+    mostraSchierata();
+  }
+
+  function mostraSchierata() {
+    const e = s.esitoSchierata;
+    const d = (e && e.dettagli) || {};
+    const salvata = s.info && s.info.schierata;
+    cSchierata.replaceChildren(...[
+      salvata && el("p", { class: "tenue", testo: `Ultima schierata salvata: modulo ${salvata.modulo}, ${(salvata.titolari || []).length} titolari, ${(salvata.panchina || []).length} in panchina.` }),
+      e && el("div", { class: "errore-box" }, el("p", { testo: e.message }),
+        (d.ambigui || []).length > 0 && el("div", {}, "Più giocatori possibili: aggiungi la squadra (ad esempio \"Thuram JUV\").",
+          el("ul", {}, d.ambigui.map((a) => el("li", { testo: `"${a.testo}": ${(a.opzioni || []).map(riepilogoRiga).join(" oppure ")}` })))),
+        (d.non_trovati || []).length > 0 && el("div", {}, "Non trovati nel listone (controlla come sono scritti):",
+          el("ul", {}, d.non_trovati.map((n) => el("li", { testo: String(n) })))),
+        (d.errori || []).length > 0 && el("ul", {}, d.errori.map((t) => el("li", { testo: String(t) })))),
+    ].filter(Boolean));
+  }
+
+  // ----- report -----
+  async function calcola(ev) {
+    const x = legge();
+    if (!x) return;
+    ev.target.disabled = true;
+    try {
+      const r = await api("POST", percorso(x));
+      messaggio(`Verifica calcolata (versione ${r.versione}).`);
+      await carica();
+    } catch (e) { messaggio(e.message, true); }
+    ev.target.disabled = false;
+  }
+
+  function misure(m, rg) {
+    const colonne = ["consigliata", "schierata"];
+    const cella = (f) => colonne.map((c) => el("td", { testo: m[c] ? punti(f(m[c])) : "—" }));
+    const unica = (nome, x) => el("tr", {}, el("td", { testo: nome }), el("td", { colspan: "2", testo: x ? punti(x.totale) : "—" }));
+    return el("section", { class: "carta" }, el("h2", { testo: "I punti" }),
+      el("table", {},
+        el("thead", {}, el("tr", {}, el("th", { testo: "" }), el("th", { testo: "Consigliata" }), el("th", { testo: "Schierata" }))),
+        el("tbody", {},
+          unica("Perfetta assoluta", m.perfetta_assoluta),
+          m.perfetta_rosa !== null && m.perfetta_rosa !== undefined && unica("Perfetta della rosa", m.perfetta_rosa),
+          el("tr", {}, el("td", { testo: "Migliore tra i 18" }), cella((x) => x.migliore_tra_18 && x.migliore_tra_18.totale)),
+          el("tr", {}, el("td", { testo: "Ottenuto" }), cella((x) => x.ottenuto.totale)))),
+      el("p", { class: "tenue piccolo", testo: "La \"perfetta\" è la migliore formazione possibile a giornata finita (una tra le migliori a pari punti). \"Migliore tra i 18\" è la migliore che si poteva fare con gli stessi 18 giocatori scelti." }),
+      el("h3", { testo: "Dove si sono persi i punti" }),
+      el("table", {},
+        el("thead", {}, el("tr", {}, ["", "Totale", "Limite della rosa", "Selezione", "Schieramento"].map((t) => el("th", { testo: t })))),
+        el("tbody", {}, colonne.filter((c) => rg && rg[c]).map((c) => el("tr", {},
+          el("td", { testo: c === "consigliata" ? "Consigliata" : "Schierata" }),
+          ["totale", "limite_rosa", "selezione", "schieramento"].map((k) => el("td", { testo: punti(rg[c][k]) })))))),
+      el("p", { class: "tenue piccolo", testo: "Limite della rosa: punti che la tua rosa non poteva dare. Selezione: giocatori scelti tra i 18 sbagliando. Schieramento: modo di disporre i 18 (titolari, panchina, capitano)." }));
+  }
+
+  function dettaglio(titolo, mis) {
+    const o = mis.ottenuto;
+    const nomi = Object.fromEntries(o.giocatori.map((g) => [g.id, g.nome]));
+    return el("details", { class: "dettaglio" }, el("summary", { testo: `Dettaglio ${titolo}` }),
+      el("table", {},
+        el("thead", {}, el("tr", {}, ["Giocatore", "Ruolo", "Voto", "FV", "Posto"].map((t) => el("th", { testo: t })))),
+        el("tbody", {}, o.giocatori.map((g) => el("tr", {},
+          el("td", { testo: g.nome }), el("td", { testo: g.ruolo }), el("td", { testo: punti(g.voto) }), el("td", { testo: punti(g.fv) }),
+          el("td", { testo: `${g.titolare ? "titolare" : "riserva"}${g.uscito ? ", uscito" : g.entrato ? ", entrato" : g.in_campo ? ", in campo" : ""}` }))))),
+      el("p", { class: "piccolo", testo: `Cambi: ${o.cambi.map((c) => `${nomi[c.esce] || c.esce} → ${nomi[c.entra] || c.entra}`).join(", ") || "nessuno"}.` }),
+      el("p", { class: "piccolo", testo: `Modificatore: ${punti(o.modificatore.bonus)}. Capitano: ${nomi[o.capitano.id] || "—"}, bonus ${punti(o.capitano.bonus)}${o.capitano.da === "vice" ? " (dal vice)" : ""}.` }));
+  }
+
+  function report(d) {
+    const [titolo, spiega, classe] = STATI_VERIFICA[d.stato] || [String(d.stato), "", "dubbio"];
+    return [
+      el("section", { class: `carta stato-verifica ${classe}` },
+        el("p", { class: "stato-grande", testo: titolo }), el("p", { testo: spiega }),
+        d.motivi.length > 0 && el("ul", {}, d.motivi.map((m) => el("li", { testo: m })))),
+      misure(d.misure, d.regret),
+      (d.misure.consigliata || d.misure.schierata) && el("section", { class: "carta" }, el("h2", { testo: "Chi è entrato e chi è uscito" }),
+        d.misure.consigliata && dettaglio("della consigliata", d.misure.consigliata),
+        d.misure.schierata && dettaglio("della schierata", d.misure.schierata)),
+      el("section", { class: "carta" }, el("h2", { testo: "Errori" }),
+        d.errori.length ? el("ul", { class: "elenco" }, d.errori.map((e) => el("li", {}, el("strong", { testo: `${e.formazione}: ` }), e.testo)))
+          : el("p", { class: "tenue", testo: "Nessun errore rilevato." })),
+    ];
+  }
+
+  function mostra() {
+    mostraVoti();
+    mostraSchierata();
+    const i = s.info;
+    const elenco = i && i.versioni.length ? el("section", { class: "carta" }, el("h2", { testo: "Verifiche salvate" }),
+      el("ul", { class: "elenco" }, i.versioni.slice().reverse().map((v) => el("li", {},
+        el("strong", { testo: `Versione ${v.k}` }), ` · ${v.ora ? quando(v.ora) : "data sconosciuta"} · ${(STATI_VERIFICA[v.stato] || [v.stato === "illeggibile" ? "non leggibile" : String(v.stato)])[0]}`,
+        v.totali && Object.keys(v.totali).length ? el("span", { class: "tenue piccolo", testo:
+          ` — consigliata ${punti(v.totali.consigliata)}, schierata ${punti(v.totali.schierata)}, perfetta ${punti(v.totali.perfetta_rosa ?? v.totali.perfetta_assoluta)}` }) : null)))) : null;
+    cReport.replaceChildren(...[
+      s.errore && el("div", { class: "errore-box", testo: s.errore }),
+      i && i.versione_illeggibile && el("div", { class: "errore-box", testo: `L'ultima verifica salvata (versione ${i.versione_illeggibile}) non è leggibile: calcolala di nuovo.` }),
+      i && i.ultima ? report(i.ultima) : i && !i.versione_illeggibile && el("p", { class: "tenue", testo: "Nessuna verifica ancora calcolata per questa giornata." }),
+      elenco,
+    ].flat(Infinity).filter(Boolean));
+  }
+
+  carica();
+  mostra();
+
+  return [
+    el("button", { class: "indietro", onclick: () => vai("leghe"), testo: "← Le mie leghe" }),
+    el("h1", { testo: `Verifica · ${l.nome}` }),
+    el("p", { class: "sotto", testo: "Dopo la giornata: quanto valeva la formazione consigliata e quella che hai schierato." }),
+    el("section", { class: "carta" }, el("h2", { testo: "1. Giornata" }),
+      el("div", { class: "griglia-numeri" },
+        el("div", {}, campo("Stagione", stagione)), el("div", {}, campo("Giornata", giornata))),
+      el("div", { class: "riga-pulsanti" }, el("button", { onclick: carica, testo: "Mostra questa giornata" }))),
+    el("section", { class: "carta" }, el("h2", { testo: "2. I voti" }), cVoti,
+      !stato.dati.avviso_accettato && el("p", { class: "tenue piccolo", testo: "Per scaricare i voti accetta prima l'avviso; la pagina salvata a mano si può caricare sempre." }),
+      el("div", { class: "riga-pulsanti" }, scarica),
+      campo("Oppure carica la pagina salvata (.html)", caricaPagina)),
+    el("section", { class: "carta" }, el("h2", { testo: "3. Cosa hai schierato" }),
+      el("p", { class: "tenue", testo: "Facoltativo: scrivi la formazione che hai messo nell'app. Si può rifare quante volte serve, le versioni vecchie restano." }),
+      campo("Titolari", titolari), campo("Modulo", modulo), campo("Panchina, in ordine", panchina),
+      campo("Capitano", capitano), campo("Vice", vice),
+      el("div", { class: "riga-pulsanti" }, el("button", { onclick: salvaSchierata, testo: "Salva la schierata" })),
+      cSchierata),
+    el("section", { class: "carta" }, el("h2", { testo: "4. Il risultato" }),
+      el("div", { class: "riga-pulsanti" }, el("button", { class: "primario", onclick: calcola, testo: "Calcola la verifica" }))),
+    cReport,
   ];
 }
 

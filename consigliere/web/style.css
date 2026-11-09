@@ -245,3 +245,17 @@ td select { padding: 6px 8px; width: auto; }
 }
 
 h2 button.indietro { font: inherit; color: var(--testo); margin: 0; padding: 0; text-align: left; }
+
+/* Verifica della giornata */
+.stato-verifica { border-width: 2px; }
+.stato-verifica.ok { border-color: var(--verde); }
+.stato-verifica.dubbio { border-color: var(--dubbio-testo); background: var(--dubbio-sfondo); }
+.stato-verifica.errore { border-color: var(--errore); background: var(--errore-sfondo); }
+.stato-grande { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 4px; }
+.stato-verifica.ok .stato-grande { color: var(--verde); }
+.stato-verifica.dubbio .stato-grande { color: var(--dubbio-testo); }
+.stato-verifica.errore .stato-grande { color: var(--errore); }
+.stato-verifica ul { margin: 6px 0 0; padding-left: 20px; }
+details.dettaglio { grid-column: auto; margin-top: 10px; }
+details.dettaglio table { margin-top: 8px; font-size: 0.92rem; }
+.carta h3 { margin-top: 14px; }

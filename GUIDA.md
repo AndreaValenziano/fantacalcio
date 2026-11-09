@@ -4,7 +4,7 @@ Il consigliere ti dice chi schierare nella tua lega di Fantacalcio e ti spiega p
 
 Non entra mai nella tua lega e non conosce la tua password. La formazione la inserisci sempre tu nell'app.
 
-Le cose da fare una volta sola sono i passi 1–4. Poi, ogni giornata, bastano i passi 6 e 7.
+Le cose da fare una volta sola sono i passi 1–4. Poi, ogni giornata, bastano i passi 6 e 7 (e, a giornata finita, l'8).
 
 ---
 
@@ -74,6 +74,22 @@ Se la finestra dell'IA si chiude o si blocca, nella pagina premi **"Ho chiuso il
 Ricontrolla i giocatori in dubbio prima della scadenza indicata, poi **inserisci tu la formazione nell'app**.
 
 Le ricerche passate restano sotto "Ricerche precedenti". I tuoi dati stanno nella cartella `ConsiglioFormazione` dentro la tua cartella utente.
+
+## 8. Dopo la giornata: la verifica
+
+A giornata finita puoi controllare quanto valeva la formazione consigliata e quella che hai schierato davvero. Nella pagina "Le mie leghe" premi **"Verifica"** sulla lega.
+
+1. **Scegli la giornata.** La stagione è già `2026-27`; indica il numero della giornata.
+2. **Scarica i voti.** Premi "Scarica i voti": il programma legge la pagina pubblica dei voti, solo quando premi il pulsante. La pagina ti dice se i voti sono completi e cosa è cambiato rispetto a una copia scaricata prima (i voti vengono corretti nei giorni dopo la partita).
+3. **Se il download non riesce**, il programma lo scrive e ti mostra il link della pagina dei voti. Aprilo nel browser, salva la pagina (File → "Salva con nome", formato **"Pagina web, solo HTML"**) e caricala con "Carica la pagina salvata". Lo stesso vale per il listone: "Aggiorna dal sito" oppure "Carica la pagina salvata".
+4. **Scrivi cosa hai schierato** (facoltativo): i titolari uno per riga (come per la rosa, con la squadra se ci sono due omonimi, ad esempio `Thuram JUV`), il modulo, la panchina in ordine di ingresso, capitano e vice. Se un nome non è riconosciuto con certezza o la formazione non rispetta le regole, la pagina elenca cosa correggere.
+5. **Premi "Calcola la verifica"** e leggi il risultato:
+   - **Stato:** "Certificato" vuol dire dati completi e ricerca fatta prima della scadenza; "Provvisorio" che qualcosa non è certo (i motivi sono elencati); "Dati incompleti" che i voti scaricati non erano completi.
+   - **I punti:** la formazione perfetta (assoluta e della tua rosa), la migliore che si poteva fare con gli stessi 18, e quanto hanno ottenuto la consigliata e la schierata.
+   - **Dove si sono persi i punti** (il "regret"): quanto è dovuto alla rosa (limite), a chi hai scelto tra i 18 (selezione) e a come li hai disposti (schieramento).
+   - **Errori e dettaglio:** chi non ha preso voto, chi è entrato al suo posto, il capitano migliore che c'era.
+
+Puoi ricalcolare quando vuoi, ad esempio dopo che i voti sono stati corretti: le versioni vecchie restano nell'elenco "Verifiche salvate".
 
 ---
 
