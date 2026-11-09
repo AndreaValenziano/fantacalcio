@@ -18,8 +18,9 @@ const DISPONIBILITA = {
 };
 const LISTONE_PUBBLICO = "https://www.fantacalcio.it/quotazioni-fantacalcio";
 const STAGIONE_PREDEFINITA = "2026-27";
-const AVVISO = "Questo strumento legge pagine pubbliche di fantacalcio.it solo quando premi un pulsante: " +
-  "\"Cerca la formazione\", \"Scarica i voti\", \"Aggiorna dal sito\" (listone) e la lettura delle probabili formazioni. " +
+const AVVISO = "Questo strumento legge pagine pubbliche di fantacalcio.it solo quando premi un pulsante. " +
+  "Il programma scarica da solo soltanto i voti (\"Scarica i voti\") e il listone (\"Aggiorna dal sito\"). " +
+  "Con \"Cerca la formazione\" è l'IA scelta a leggere pagine pubbliche, comprese le probabili formazioni di fantacalcio.it. " +
   "I termini d'uso di Fantacalcio vietano l'accesso automatico alle pagine senza autorizzazione scritta e " +
   "prevedono sanzioni fino alla cancellazione di account e leghe. Lo strumento non entra mai in una lega e non " +
   "usa le tue credenziali, ma questo riduce il rischio senza eliminarlo. La decisione di usarlo è tua.";
@@ -637,8 +638,15 @@ function vistaVerifica() {
   const cVoti = el("div", {});
   const cReport = el("div", {});
   const cSchierata = el("div", {});
+  // giornata predefinita: l'ultima usata per questa lega (memoria del browser), altrimenti quella della sessione (1)
+  const chiaveGiornata = `vgiornata:${l.id}`;
+  let giornataIniziale = stato.vgiornata;
+  try {
+    const ricordata = Number(localStorage.getItem(chiaveGiornata));
+    if (Number.isInteger(ricordata) && ricordata >= 1 && ricordata <= 38) giornataIniziale = ricordata;
+  } catch (e) { /* memoria del browser non disponibile */ }
   const stagione = el("input", { type: "text", value: stato.vstagione, maxlength: "7", placeholder: "2026-27", "aria-label": "Stagione" });
-  const giornata = el("input", { type: "number", value: String(stato.vgiornata), min: "1", max: "38", "aria-label": "Giornata" });
+  const giornata = el("input", { type: "number", value: String(giornataIniziale), min: "1", max: "38", "aria-label": "Giornata" });
 
   const legge = () => {
     const st = stagione.value.trim(), g = Number(giornata.value);
@@ -655,6 +663,7 @@ function vistaVerifica() {
     if (!x) return;
     stato.vstagione = x.st;
     stato.vgiornata = x.g;
+    try { localStorage.setItem(chiaveGiornata, String(x.g)); } catch (e) { /* facoltativo */ }
     s.errore = null;
     const mio = (s.richiesta = (s.richiesta || 0) + 1);
     let info = null, errore = null;
@@ -728,6 +737,7 @@ function vistaVerifica() {
   const modulo = el("select", {}, (l.moduli && l.moduli.length ? l.moduli : TUTTI_I_MODULI).map((m) => el("option", { value: m, testo: m })));
   const titolari = el("textarea", { placeholder: "Gli 11 titolari, uno per riga, ad esempio:\nSommer\nThuram JUV\nDimarco INT" });
   const panchina = el("textarea", { placeholder: "La panchina, uno per riga, nell'ordine di ingresso" });
+  const conCapitano = Boolean(l.capitano && l.capitano.attivo);  // senza fattore capitano niente capitano né vice
   const capitano = el("input", { type: "text", placeholder: "Es. Lautaro" });
   const vice = el("input", { type: "text", placeholder: "Es. Thuram" });
   titolari.style.minHeight = "130px";
@@ -741,7 +751,7 @@ function vistaVerifica() {
     try {
       const r = await api("POST", percorso(x, "/schierata"), {
         testo: titolari.value, modulo: modulo.value, panchina: panchina.value.split("\n").map((t) => t.trim()).filter(Boolean),
-        capitano: capitano.value.trim(), vice: vice.value.trim(),
+        ...(conCapitano ? { capitano: capitano.value.trim(), vice: vice.value.trim() } : {}),
       });
       messaggio(`Schierata salvata (versione ${r.versione}).`);
       await carica();
@@ -874,7 +884,7 @@ function vistaVerifica() {
     el("section", { class: "carta" }, el("h2", { testo: "3. Cosa hai schierato" }),
       el("p", { class: "tenue", testo: "Facoltativo: scrivi la formazione che hai messo nell'app. Si può rifare quante volte serve, le versioni vecchie restano." }),
       campo("Titolari", titolari), campo("Modulo", modulo), campo("Panchina, in ordine", panchina),
-      campo("Capitano", capitano), campo("Vice", vice),
+      conCapitano && campo("Capitano", capitano), conCapitano && campo("Vice", vice),
       el("div", { class: "riga-pulsanti" }, el("button", { onclick: salvaSchierata, testo: "Salva la schierata" })),
       cSchierata),
     el("section", { class: "carta" }, el("h2", { testo: "4. Il risultato" }),

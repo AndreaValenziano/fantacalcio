@@ -46,7 +46,7 @@ Scompatta lo zip `consigliere-formazione.zip` in una cartella a tua scelta, ad e
 
 Si apre una finestra con alcune scritte e poi il browser con la pagina del consigliere. **Lascia aperta quella finestra** finché usi il consigliere: chiudendola, il programma si ferma.
 
-La prima volta la pagina mostra un avviso sull'uso delle pagine di fantacalcio.it. Leggilo: se sei d'accordo, premi "Ho capito e accetto".
+La prima volta la pagina mostra un avviso sull'uso delle pagine di fantacalcio.it. Leggilo: se sei d'accordo, premi "Ho capito e accetto". Il programma scarica da solo soltanto i voti e il listone, e solo quando premi "Scarica i voti" o "Aggiorna dal sito"; durante "Cerca la formazione" è l'IA a leggere le pagine pubbliche, comprese le probabili formazioni.
 
 ## 5. Prepara listone, lega e rosa (una volta, poi solo quando cambiano)
 
@@ -82,10 +82,10 @@ A giornata finita puoi controllare quanto valeva la formazione consigliata e que
 1. **Scegli la giornata.** La stagione è già `2026-27`; indica il numero della giornata.
 2. **Scarica i voti.** Premi "Scarica i voti": il programma legge la pagina pubblica dei voti, solo quando premi il pulsante. La pagina ti dice se i voti sono completi e cosa è cambiato rispetto a una copia scaricata prima (i voti vengono corretti nei giorni dopo la partita).
 3. **Se il download non riesce**, il programma lo scrive e ti mostra il link della pagina dei voti. Aprilo nel browser, salva la pagina (File → "Salva con nome", formato **"Pagina web, solo HTML"**) e caricala con "Carica la pagina salvata". Lo stesso vale per il listone: "Aggiorna dal sito" oppure "Carica la pagina salvata".
-4. **Scrivi cosa hai schierato** (facoltativo): i titolari uno per riga (come per la rosa, con la squadra se ci sono due omonimi, ad esempio `Thuram JUV`), il modulo, la panchina in ordine di ingresso, capitano e vice. Se un nome non è riconosciuto con certezza o la formazione non rispetta le regole, la pagina elenca cosa correggere.
+4. **Scrivi cosa hai schierato** (facoltativo): i titolari uno per riga (come per la rosa, con la squadra se ci sono due omonimi, ad esempio `Thuram JUV`), il modulo, la panchina in ordine di ingresso, capitano e vice (solo se la lega usa il fattore capitano). Se un nome non è riconosciuto con certezza o la formazione non rispetta le regole, la pagina elenca cosa correggere.
 5. **Premi "Calcola la verifica"** e leggi il risultato:
    - **Stato:** "Certificato" vuol dire dati completi e ricerca fatta prima della scadenza; "Provvisorio" che qualcosa non è certo (i motivi sono elencati); "Dati incompleti" che i voti scaricati non erano completi.
-   - **I punti:** la formazione perfetta (assoluta e della tua rosa), la migliore che si poteva fare con gli stessi 18, e quanto hanno ottenuto la consigliata e la schierata.
+   - **I punti:** la formazione perfetta (assoluta e della tua rosa), la migliore che si poteva fare con gli stessi 18, e quanto hanno ottenuto la consigliata e la schierata. Se il capitano non ha preso voto, c'è anche il totale "senza il subentro del vice": controlla nell'app della lega quale dei due vale.
    - **Dove si sono persi i punti** (il "regret"): quanto è dovuto alla rosa (limite), a chi hai scelto tra i 18 (selezione) e a come li hai disposti (schieramento).
    - **Errori e dettaglio:** chi non ha preso voto, chi è entrato al suo posto, il capitano migliore che c'era.
 
