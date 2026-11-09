@@ -379,6 +379,16 @@ class TestServer(unittest.TestCase):
         self.assertEqual(self.json(r), {"versione": 1})
         self.assertEqual(len(self.json(self.chiama("GET", V11))["schierata"]["titolari"]), 11)
 
+    def test_schierata_capitano_e_vice_abbinati_come_i_titolari(self):
+        lega = self.prepara()
+        corpo = self.corpo_schierata(lega)
+        corpo |= {"capitano": corpo["capitano"].upper(), "vice": "  " + corpo["vice"].lower() + " "}
+        r = self.chiama("POST", V11 + "/schierata", corpo)
+        self.assertEqual(r.status, 200, r.dati)
+        r = self.chiama("POST", V11 + "/schierata", corpo | {"vice": "Sconosciuto Zzz"})
+        self.assertEqual(r.status, 409)
+        self.assertIn("non è tra i titolari", self.json(r)["errore"])
+
     def test_schierata_con_errori_di_regole(self):
         lega = self.prepara()
         corpo = self.corpo_schierata(lega) | {"modulo": "9-9-9"}

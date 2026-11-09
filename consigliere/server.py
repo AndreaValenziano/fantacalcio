@@ -190,8 +190,18 @@ def crea_server(base: Path, porta: int = 8765, avvia=avvia_terminale, scaricator
             e = Errore(409, "Alcuni nomi non sono stati riconosciuti con certezza: correggili.")
             e.dettagli = {"ambigui": ambigui, "non_trovati": non_trovati}
             raise e
+        def tra_i_titolari(ruolo):
+            scritto = str(corpo.get(ruolo) or "").strip()
+            if not scritto:
+                return None
+            r = abbina(scritto, tit["trovati"])
+            if len(r["trovati"]) == 1:
+                return r["trovati"][0]["nome"]
+            motivo = "è ambiguo tra i titolari" if r["ambigui"] else "non è tra i titolari"
+            raise Errore(409, f"Il {ruolo} \"{scritto}\" {motivo}: scrivilo come nell'elenco dei titolari.")
+        capitano, vice = tra_i_titolari("capitano"), tra_i_titolari("vice")
         f = {"modulo": corpo.get("modulo"), "titolari": tit["trovati"], "panchina": pan["trovati"],
-             "capitano": corpo.get("capitano") or None, "vice": corpo.get("vice") or None, "switch": None}
+             "capitano": capitano, "vice": vice, "switch": None}
         errori = controlla_formazione(f, lega, g)
         if errori:
             e = Errore(409, "La formazione schierata non rispetta le regole della lega: " + "; ".join(errori))

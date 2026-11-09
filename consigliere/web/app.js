@@ -656,7 +656,12 @@ function vistaVerifica() {
     stato.vstagione = x.st;
     stato.vgiornata = x.g;
     s.errore = null;
-    try { s.info = await api("GET", percorso(x)); } catch (e) { s.info = null; s.errore = e.message; }
+    const mio = (s.richiesta = (s.richiesta || 0) + 1);
+    let info = null, errore = null;
+    try { info = await api("GET", percorso(x)); } catch (e) { errore = e.message; }
+    if (mio !== s.richiesta) return;  // è partita una richiesta più recente: questa risposta è vecchia
+    s.info = info;
+    s.errore = errore;
     mostra();
   }
 
@@ -744,6 +749,10 @@ function vistaVerifica() {
       s.esitoSchierata = e;
     }
     ev.target.disabled = false;
+    if (s.esitoSchierata && (s.esitoSchierata.dettagli.errori || []).length) {
+      s.esitoSchierata = Object.assign(new Error("La formazione schierata non rispetta le regole della lega:"),
+        { dettagli: s.esitoSchierata.dettagli });
+    }
     mostraSchierata();
   }
 
@@ -794,7 +803,7 @@ function vistaVerifica() {
         el("tbody", {}, colonne.filter((c) => rg && rg[c]).map((c) => el("tr", {},
           el("td", { testo: c === "consigliata" ? "Consigliata" : "Schierata" }),
           ["totale", "limite_rosa", "selezione", "schieramento"].map((k) => el("td", { testo: punti(rg[c][k]) })))))),
-      el("p", { class: "tenue piccolo", testo: "Limite della rosa: punti che la tua rosa non poteva dare. Selezione: giocatori scelti tra i 18 sbagliando. Schieramento: modo di disporre i 18 (titolari, panchina, capitano)." }));
+      el("p", { class: "tenue piccolo", testo: "Limite della rosa: punti che la tua rosa non poteva dare. Selezione: punti persi scegliendo i 18 giocatori. Schieramento: punti persi nel modo di disporre quei 18 (titolari, panchina, capitano)." }));
   }
 
   function dettaglio(titolo, mis) {
@@ -821,7 +830,7 @@ function vistaVerifica() {
         d.misure.consigliata && dettaglio("della consigliata", d.misure.consigliata),
         d.misure.schierata && dettaglio("della schierata", d.misure.schierata)),
       el("section", { class: "carta" }, el("h2", { testo: "Errori" }),
-        d.errori.length ? el("ul", { class: "elenco" }, d.errori.map((e) => el("li", {}, el("strong", { testo: `${e.formazione}: ` }), e.testo)))
+        d.errori.length ? el("ul", { class: "elenco" }, d.errori.map((e) => el("li", {}, el("strong", { testo: `${e.formazione === "consigliata" ? "Consigliata" : e.formazione === "schierata" ? "Schierata" : e.formazione}: ` }), e.testo)))
           : el("p", { class: "tenue", testo: "Nessun errore rilevato." })),
     ];
   }
