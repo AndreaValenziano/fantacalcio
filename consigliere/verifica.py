@@ -108,24 +108,39 @@ def _trova(g: dict, elenco: list[dict]) -> list[dict]:
     return [x for x in elenco if nome and _compatto(x.get("nome")) == nome and _stessa_squadra(g.get("squadra"), x.get("squadra"))]
 
 
+ASSENTE = "assente:"  # id fittizio di chi è nel listone senza id ma non nella pagina dei voti: vale SV
+
+
 def collega(giocatori: list[dict], voti: dict, listone: list[dict]) -> tuple[list[dict], list[dict]]:
-    """(collegati con l'id di fantacalcio.it, non collegati con il motivo). Mai una scelta a caso tra omonimi."""
+    """(collegati con l'id di fantacalcio.it, non collegati con il motivo). Mai una scelta a caso tra omonimi.
+
+    Chi non è nella pagina dei voti ma è nel listone è collegato: con l'id del listone (pagina delle
+    quotazioni) o, se il listone non ha id (xlsx), con l'id fittizio `assente:<nome|squadra>`. Vale SV.
+    """
     pagina = voti.get("giocatori") or []
     con_id = [x for x in listone if x.get("id") is not None]
+    senza_id = [x for x in listone if x.get("id") is None]
     collegati, non = [], []
     for g in giocatori:
         if g.get("id") is not None:
             collegati.append(dict(g))
             continue
-        candidati = _trova(g, pagina) or _trova(g, con_id)  # assente dalla pagina ma nel listone: sarà SV
+        for fonte, elenco in (("nella pagina dei voti", pagina), ("nel listone", con_id), ("nel listone", senza_id)):
+            candidati = _trova(g, elenco)
+            if candidati:
+                break
+        else:
+            non.append(dict(g, motivo="non trovato nella pagina dei voti né nel listone", opzioni=[]))
+            continue
+        if elenco is senza_id:
+            candidati = [x | {"id": ASSENTE + chiave(x.get("nome"), x.get("squadra"))} for x in candidati]
         ids = sorted({x["id"] for x in candidati})
         if len(ids) == 1:
             collegati.append(dict(g, id=ids[0], ruolo=g.get("ruolo") or candidati[0].get("ruolo")))
-        elif ids:
-            opzioni = [f"{x['nome']} ({x['squadra']}, id {x['id']})" for x in candidati]
-            non.append(dict(g, motivo="più giocatori possibili: " + "; ".join(opzioni), opzioni=ids))
         else:
-            non.append(dict(g, motivo="non trovato nella pagina dei voti né nel listone", opzioni=[]))
+            opzioni = [f"{x['nome']} ({x['squadra']}" + ("" if elenco is senza_id else f", id {x['id']}") + ")"
+                       for x in candidati]
+            non.append(dict(g, motivo=f"più giocatori possibili {fonte}: " + "; ".join(opzioni), opzioni=ids))
     return collegati, non
 
 
@@ -199,6 +214,10 @@ def _misura(lega, voti, voti_id, candidati, ruoli_id, listone, f_ris, etichetta,
     # stessi ruoli delle perfette (pagina o correzione della lega): lo schieramento non può essere negativo
     for v in f["titolari"] + f["panchina"]:
         v["ruolo"] = ruoli_id.get(v["id"], v["ruolo"])
+    # chi è nel listone ma non nella pagina dei voti: riga senza voto, così ha il suo nome ed è SV
+    voti_id = voti_id | {g["id"]: {"id": g["id"], "nome": g.get("nome"), "squadra": g.get("squadra"),
+                                   "ruolo": g.get("ruolo"), "voto": None, "fv_pubblicato": None}
+                         for g in collegati if str(g["id"]).startswith(ASSENTE)}
     try:
         ottenuto = punteggio.valuta(lega, voti_id, f)
     except (ValueError, KeyError, TypeError) as e:

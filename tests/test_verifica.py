@@ -198,6 +198,24 @@ class TestCollega(unittest.TestCase):
                          [("Rossi", ""), ("Neri", "Inter"), ("Gialli", "Inter")])
         self.assertTrue(all(g["motivo"] for g in non))
 
+    def test_collega_assente_dalla_pagina_listone_senza_id(self):
+        # listone da xlsx (senza id): chi non è nella pagina dei voti ma è nel listone è collegato e vale SV
+        voti = {"giocatori": [giocatore("1", "Rossi", "Roma", "D", 6)]}
+        listone = [{"nome": "Bianchi", "squadra": "Hellas Verona", "ruolo": "C"},
+                   {"nome": "Neri", "squadra": "Inter", "ruolo": "A"},
+                   {"nome": "Neri", "squadra": "Inter Milano", "ruolo": "A"}]
+        formazione = [{"nome": "Bianchi", "squadra": "VER", "ruolo": "C"},
+                      {"nome": "Neri", "squadra": "INT", "ruolo": "A"},
+                      {"nome": "Gialli", "squadra": "Inter", "ruolo": "A"},
+                      {"nome": "Rossi", "squadra": "Roma", "ruolo": "D"}]
+        collegati, non = verifica.collega(formazione, voti, listone)
+        self.assertEqual([(g["nome"], g["id"]) for g in collegati],
+                         [("Bianchi", "assente:bianchi|hellas verona"), ("Rossi", "1")])
+        self.assertTrue(all("motivo" not in g for g in collegati))
+        motivi = {g["nome"]: g["motivo"] for g in non}
+        self.assertIn("nel listone", motivi["Neri"])
+        self.assertEqual(motivi["Gialli"], "non trovato nella pagina dei voti né nel listone")
+
     def test_collega_per_id(self):
         voti = {"giocatori": [giocatore("7", "Rossi", "Roma", "D", 6)]}
         collegati, non = verifica.collega([{"id": "7", "nome": "Rossi Mario", "squadra": "?", "ruolo": "D"}], voti, [])
@@ -230,6 +248,25 @@ class TestCalcola(unittest.TestCase):
         self.assertEqual(dati["voti"]["sha256"], "abc")
         self.assertEqual(dati["voti"]["mancanze"], [])
         self.assertEqual((dati["giornata"], dati["lega"]), (11, "grossa"))
+
+    def test_rosa_assente_dalla_pagina_certificato(self):
+        # un giocatore della rosa senza riga nei voti, listone senza id: è SV, non un motivo di dubbio
+        lega, voti, r = lega_prova("grossa"), voti_prova(), risultato_11("grossa")
+        nella_formazione = {(g["nome"], g["squadra"]) for g in r["formazioni"]["rosa"]["titolari"]
+                            + r["formazioni"]["rosa"]["panchina"]}
+        fuori = next(g for g in lega["rosa"] if (g["nome"], g["squadra"]) not in nella_formazione)
+        voti["giocatori"] = [g for g in voti["giocatori"] if g["nome"] != fuori["nome"]]
+        dati = verifica.calcola(lega, voti, listone_prova(), consigliata_a_mano(r), None)
+        self.assertEqual(dati["stato"], "CERTIFICATO", dati["motivi"])
+
+    def test_titolare_assente_dalla_pagina_vale_sv(self):
+        lega, voti, r = lega_prova("grossa"), voti_prova(), risultato_11("grossa")
+        tit = r["formazioni"]["rosa"]["titolari"][1]
+        voti["giocatori"] = [g for g in voti["giocatori"] if g["nome"] != tit["nome"]]
+        dati = verifica.calcola(lega, voti, listone_prova(), consigliata_a_mano(r), None)
+        self.assertFalse(any("non collegato" in m for m in dati["motivi"]), dati["motivi"])
+        g = next(g for g in dati["misure"]["consigliata"]["ottenuto"]["giocatori"] if g["nome"] == tit["nome"])
+        self.assertIsNone(g["voto"])
 
     def test_regret_somma(self):
         lega = lega_prova("grossa")
