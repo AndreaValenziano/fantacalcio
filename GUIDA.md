@@ -54,6 +54,14 @@ La prima volta la pagina mostra un avviso sull'uso delle pagine di fantacalcio.i
 2. **Lega.** Apri "Aggiungi una lega", scegli il modello più simile (pensionati, grossa, F1, scelta libera) e dagli un nome. Si apre la pagina delle regole: confrontala con le impostazioni della lega nell'app e correggi ciò che è diverso. I campi "da scegliere" vanno compilati, altrimenti non si può cercare.
 3. **Rosa.** Premi "Modifica rosa" e incolla i nomi dei tuoi giocatori, uno per riga. Se due giocatori hanno lo stesso nome, aggiungi la squadra: `Thuram JUV`. Premi "Abbina al listone" e poi "Aggiungi alla rosa". Se un nome non viene trovato, controlla come è scritto nel listone. Se la tua lega ha cambiato il ruolo di un giocatore, correggilo dalla tabella della rosa.
 
+### Facoltativo: il riassunto condiviso
+
+Andrea può darti l'indirizzo di un riassunto che il suo PC prepara ogni mattina con un modello locale. Con il riassunto la ricerca spende meno, e se manca funziona come sempre. Per usarlo:
+
+1. Installa [Tailscale](https://tailscale.com/download) e accedi con l'account che ti indica Andrea.
+2. Apri nel browser l'indirizzo che ti ha dato, che finisce con `ultimo.json`: deve mostrare del testo.
+3. Nella pagina del consigliere apri **"Riassunto giornaliero (facoltativo)"**, incolla l'indirizzo e premi **Salva**.
+
 ## 6. Cerca la formazione (ogni giornata)
 
 1. Nella pagina "Le mie leghe" scegli la lega, l'IA e lo stile:

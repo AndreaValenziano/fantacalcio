@@ -218,6 +218,20 @@ class TestServer(unittest.TestCase):
         self.assertEqual(self.json(self.chiama("GET", "/api/ricerche/prova"))[0]["id"], id_)
         self.assertEqual(self.post_ricerca().status, 200)
 
+    def test_ricerca_con_riassunto_condiviso_irraggiungibile_parte_senza(self):
+        self.prepara()
+        r = self.chiama("PUT", "/api/riassunto", {"condiviso": "https://127.0.0.1:1/ultimo.json"})
+        self.assertEqual(r.status, 200)
+        id_ = self.json(self.post_ricerca())["id"]
+        richiesta = json.loads((self.base / "ricerche" / "prova" / id_ / "richiesta.json").read_text("utf-8"))
+        self.assertFalse(richiesta["riassunto"])
+        self.assertFalse(self.json(self.chiama("GET", f"/api/ricerche/prova/{id_}"))["con_riassunto"])
+
+    def test_indirizzo_del_riassunto_non_http_rifiutato(self):
+        self.assertEqual(self.chiama("PUT", "/api/riassunto", {"condiviso": "javascript:alert(1)"}).status, 400)
+        self.assertEqual(self.chiama("PUT", "/api/riassunto", {"condiviso": ""}).status, 200)
+        self.assertIsNone(self.json(self.chiama("GET", "/api/stato"))["riassunto"]["config"]["condiviso"])
+
     def test_chiudi_sblocca_una_nuova_ricerca(self):
         self.prepara()
         id_ = self.json(self.post_ricerca())["id"]

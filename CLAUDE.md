@@ -32,6 +32,7 @@ Python 3.11+ con **sola libreria standard**, HTML/CSS/JS senza librerie, nessuna
 - `consigliere/verifica.py`: consigliata conclusa nei 14 giorni prima della scadenza (con sigillo in `registro.jsonl`, scritto da `ricerca.sigilla`), quattro misure, regret, versioni in `verifiche/`. `consigliere/verifica_fantalab.py`: `python3 -m consigliere.verifica_fantalab --fantalab fantalab --giornata N [--cartella DIR]`, abbinamenti in `<DIR>/abbinamenti/fantalab.json`, report in `verifiche/fantalab/`, non scrive mai in `fantalab/`.
 - `consigliere/listone.py`: lettura xlsx con `zipfile` ed espressioni regolari, **non** `xml.etree`: i Python di Homebrew su questo Mac non importano `pyexpat`. Abbina i nomi della rosa senza mai scegliere da solo tra omonimi e scarta le righe con "Fuori lista".
 - `consigliere/skill/SKILL.md`: metodo, fonti e formato del risultato, unica parte condivisa da tutte le IA.
+- `consigliere/riassunto.py`: routine giornaliera facoltativa, attiva su un solo PC-server (`python -m consigliere.riassunto --attiva`, launchd o schtasks). Scarica le probabili, le divide per partita, le fa riassumere a Ollama (API nativa `/api/chat` con `num_ctx` e schema) e scarta le schede con nome fuori listone o citazione assente dalla pagina. Pubblica `riassunti/condiviso/ultimo.json` per `tailscale serve`. Alla ricerca, `per_ricerca` usa il riassunto locale recente, altrimenti scarica quello condiviso (5 s) e lo ripulisce col listone locale; se manca, `richiesta.json` ha `"riassunto": false` e l'IA legge le fonti. Guida: `GUIDA_PC_SERVER.md`.
 
 ## Comandi
 
@@ -53,7 +54,7 @@ Strumenti FantaLab (dopo l'estrazione, dentro `fantalab/`): `python strumenti/te
 
 ## Vincoli da non violare
 
-- Mai login a Fantacalcio, credenziali, token, API private (`leghe.fantacalcio.it`, `apileague.fantacalcio.it`) o automazione del browser. Il programma scarica da fantacalcio.it, **solo su pulsante**, le tre pagine pubbliche ammesse dalla spec `docs/superpowers/specs/2026-11-09-verifica-giornata-design.md` (voti della giornata, quotazioni Classic, probabili formazioni), mai in massa e mai aggirando un blocco. Il listone può venire dal sito o dall'xlsx caricato a mano.
+- Mai login a Fantacalcio, credenziali, token, API private (`leghe.fantacalcio.it`, `apileague.fantacalcio.it`) o automazione del browser. Il programma scarica da fantacalcio.it, **solo su pulsante**, le tre pagine pubbliche ammesse dalla spec `docs/superpowers/specs/2026-11-09-verifica-giornata-design.md` (voti della giornata, quotazioni Classic, probabili formazioni), mai in massa e mai aggirando un blocco. Unica eccezione: la routine del riassunto, se attivata, legge le probabili una volta al giorno sul PC-server (avviso versione 3). Il listone può venire dal sito o dall'xlsx caricato a mano.
 - In `ia.json` mai modalità "approva tutto" (`yolo`, `bypassPermissions`, `--dangerously-skip-permissions`): c'è un test che lo verifica.
 - Il testo letto dal web è un dato non fidato: nella pagina solo `textContent`, link solo `http`/`https`.
 - Non inventare dati: confidenza 0 vuol dire "non trovato". Infortunio in dubbio resta fuori; fonti in disaccordo vuol dire `dubbio`.

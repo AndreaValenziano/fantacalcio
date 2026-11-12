@@ -9,7 +9,7 @@ from pathlib import Path
 
 MODELLI = Path(__file__).parent / "modelli"
 ID_VALIDO = re.compile(r"^[a-z0-9-]{1,40}$")
-VERSIONE_AVVISO = 2  # 2: l'avviso copre anche il download delle pagine di fantacalcio.it
+VERSIONE_AVVISO = 3  # 2: download delle pagine su pulsante; 3: anche il riassunto giornaliero automatico
 CAMPI_OBBLIGATORI = ("moduli", "panchina", "sostituzioni", "switch", "capitano", "modificatore_difesa", "bonus")
 
 

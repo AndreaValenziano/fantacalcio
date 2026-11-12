@@ -75,7 +75,7 @@ class TestArchivio(unittest.TestCase):
         self.assertFalse(self.a.avviso_accettato())
         self.a.accetta_avviso()
         self.assertTrue(self.a.avviso_accettato())
-        self.assertEqual(json.loads((self.base / "avviso.json").read_text())["versione"], 2)
+        self.assertEqual(json.loads((self.base / "avviso.json").read_text())["versione"], 3)
 
     def test_listone_con_origine(self):
         self.a.salva_listone([{"nome": "Thuram", "squadra": "Inter", "ruolo": "A"}])

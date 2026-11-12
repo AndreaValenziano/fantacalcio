@@ -27,6 +27,15 @@ Lavori dentro la cartella di una ricerca. Qui trovi `richiesta.json` (lega, rego
 
 ## 3. Fonti
 
+**Prima di tutto, il riassunto.** Se in `richiesta.json` c'è `"riassunto": true`, in questa cartella c'è `riassunto.json`: le schede che un modello locale ha estratto oggi dalle probabili formazioni, con nome e squadra già abbinati al listone e la frase della pagina in `citazione`. Usalo così:
+
+- Parti dalle sue schede e **non rileggere** le pagine elencate nelle sue `fonti`: è lì per risparmiare la lettura.
+- Cerca sul web solo i giocatori della rosa o i candidati **senza scheda**, quelli con `fonti_in_disaccordo` e quelli con `disponibilita` diversa da `disponibile`.
+- Le schede vengono da un modello più debole: se una fonte che leggi ora dice altro, segna `fonti_in_disaccordo` e il giocatore in `dubbio`.
+- Copia i `link` del riassunto nelle schede del risultato. La `confidenza` la decidi tu: una scheda del solo riassunto vale al massimo 2.
+
+Se `"riassunto"` è `false` o `riassunto.json` manca, ignora questo paragrafo e leggi le fonti come sotto.
+
 Leggi, nell'ordine:
 
 1. **Probabili formazioni di fantacalcio.it:** `https://www.fantacalcio.it/probabili-formazioni-serie-a`. La pagina è lunga: leggila **fino in fondo**, tutte le partite, comprese le note su indisponibili, squalificati, ballottaggi e percentuali di impiego.

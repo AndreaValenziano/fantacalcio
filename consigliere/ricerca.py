@@ -42,7 +42,8 @@ def _listone_della_lega(lega: dict, giocatori: list[dict]) -> list[dict]:
     return [dict(g, ruolo=ruoli.get(chiave(g["nome"], g["squadra"]), g["ruolo"])) for g in giocatori]
 
 
-def crea_ricerca(base: Path, lega: dict, giocatori: list[dict], ia: dict, stile: str, ora: datetime) -> Path:
+def crea_ricerca(base: Path, lega: dict, giocatori: list[dict], ia: dict, stile: str, ora: datetime,
+                 riassunto: dict | None = None) -> Path:
     radice = cartella_lega(base, lega["id"])
     radice.mkdir(parents=True, exist_ok=True)
     nome, n = ora.strftime("%Y%m%d-%H%M%S"), 2
@@ -58,8 +59,10 @@ def crea_ricerca(base: Path, lega: dict, giocatori: list[dict], ia: dict, stile:
     shutil.copyfile(QUI / "controllo.py", cartella / "controlla.py")
     richiesta = {
         "lega": lega, "listone": _listone_della_lega(lega, giocatori), "stile": stile, "ia": ia["id"],
-        "creata_il": ora.isoformat(timespec="seconds"),
+        "creata_il": ora.isoformat(timespec="seconds"), "riassunto": riassunto is not None,
         "comando_controllo": f'"{python}" controlla.py richiesta.json risultato.json'}
+    if riassunto is not None:
+        scrivi_json(cartella / "riassunto.json", riassunto)
     # La copia del programma sta fuori dalla cartella in cui lavora l'IA, che non può modificarla.
     scrivi_json(_copia_richiesta(cartella), richiesta)
     scrivi_json(cartella / "richiesta.json", richiesta)
@@ -134,7 +137,8 @@ def _stato(cartella: Path) -> dict:
     cartella = Path(cartella)
     richiesta = json.loads(_copia_richiesta(cartella).read_text(encoding="utf-8"))
     s = {"id": cartella.name, "stato": "in_corso", "avviata_il": richiesta.get("creata_il"),
-         "ia": richiesta.get("ia"), "stile": richiesta.get("stile"), "errori": [], "risultato": None, "scadenza": None}
+         "ia": richiesta.get("ia"), "stile": richiesta.get("stile"), "con_riassunto": richiesta.get("riassunto") is True,
+         "errori": [], "risultato": None, "scadenza": None}
     if not _finita(cartella):
         return s
     p = cartella / "risultato.json"

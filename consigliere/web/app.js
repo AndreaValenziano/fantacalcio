@@ -18,9 +18,11 @@ const DISPONIBILITA = {
 };
 const LISTONE_PUBBLICO = "https://www.fantacalcio.it/quotazioni-fantacalcio";
 const STAGIONE_PREDEFINITA = "2026-27";
-const AVVISO = "Questo strumento legge pagine pubbliche di fantacalcio.it solo quando premi un pulsante. " +
+const AVVISO = "Questo strumento legge pagine pubbliche di fantacalcio.it quando premi un pulsante. " +
   "Il programma scarica da solo soltanto i voti (\"Scarica i voti\") e il listone (\"Aggiorna dal sito\"). " +
   "Con \"Cerca la formazione\" è l'IA scelta a leggere pagine pubbliche, comprese le probabili formazioni di fantacalcio.it. " +
+  "Se su questo computer attivi il riassunto giornaliero, il programma legge anche la pagina delle probabili " +
+  "formazioni una volta al giorno in automatico, senza che tu prema nulla. " +
   "I termini d'uso di Fantacalcio vietano l'accesso automatico alle pagine senza autorizzazione scritta e " +
   "prevedono sanzioni fino alla cancellazione di account e leghe. Lo strumento non entra mai in una lega e non " +
   "usa le tue credenziali, ma questo riduce il rischio senza eliminarlo. La decisione di usarlo è tua.";
@@ -244,6 +246,43 @@ async function aggiornaStato() {
   disegna();
 }
 
+function cartaRiassunto() {
+  const r = stato.dati.riassunto;
+  const indirizzo = el("input", {
+    type: "url", placeholder: "https://andrea-pc.<rete>.ts.net/ultimo.json", value: r.config.condiviso || "",
+  });
+  const salva = el("button", {
+    testo: "Salva",
+    onclick: async () => {
+      try {
+        await api("PUT", "/api/riassunto", { condiviso: indirizzo.value.trim() || null });
+        await aggiorna();
+        disegna();
+        messaggio(indirizzo.value.trim() ? "Indirizzo del riassunto salvato." : "Riassunto condiviso tolto.");
+      } catch (e) { messaggio(e.message, true); }
+    },
+  });
+  const righe = [];
+  if (r.config.attivo) {
+    righe.push(el("p", { testo: `Questo computer è il PC-server: la routine gira ogni giorno alle ${r.config.ora} con ${r.config.modello}.` }));
+  }
+  if (r.ultimo) {
+    righe.push(el("p", { testo: `Ultimo riassunto su questo computer: ${quando(r.ultimo.creato_il)}, ` +
+      `${r.ultimo.schede} schede, ${r.ultimo.scartate} scartate${r.recente ? "" : " (troppo vecchio, non verrà usato)"}.` }));
+  }
+  if (r.registro.length) {
+    righe.push(el("details", {}, el("summary", { class: "tenue piccolo", testo: "Ultime esecuzioni" }),
+      el("ul", { class: "piccolo" }, r.registro.map((x) => el("li", { testo: x })))));
+  }
+  return el("details", { class: "carta", open: Boolean(r.config.attivo || r.config.condiviso) || null },
+    el("summary", { testo: "Riassunto giornaliero (facoltativo)" }),
+    el("p", { class: "tenue piccolo", testo: "Un modello locale riassume ogni mattina le probabili formazioni: l'IA parte da lì e spende meno. " +
+      "Se il riassunto manca o è più vecchio di 24 ore, l'IA legge le fonti da sola." }),
+    ...righe,
+    campo("Indirizzo del riassunto condiviso (lo trovi nella guida del PC-server)", indirizzo),
+    el("div", { class: "riga-pulsanti" }, salva));
+}
+
 function cartaListone() {
   const l = stato.dati.listone;
   const input = el("input", {
@@ -354,6 +393,7 @@ function vistaLeghe() {
     d.leghe.length ? d.leghe.map(cartaLega) : el("p", { class: "tenue", testo: "Nessuna lega: aggiungine una qui sotto." }),
     cartaNuovaLega(),
     cartaListone(),
+    cartaRiassunto(),
     campo("Quale IA usare", sceltaIa),
     ia && ia.avviso && el("div", { class: "avviso", testo: ia.avviso }),
     el("fieldset", { class: "interruttore" }, el("legend", { class: "tenue", testo: "Stile" }),
@@ -976,6 +1016,7 @@ function risultatoPronto(s) {
   const testa = [`Dati controllati ${quando(ris.controllato_il)}`];
   const m = mancano(s.scadenza);
   if (m) testa.push(m);
+  testa.push(s.con_riassunto ? "con il riassunto del modello locale" : "senza riassunto");
   const schede = [["campo", "Campo"], ["motivi", "Motivi"]].concat(haConfronto ? [["confronto", "Confronto"]] : []);
   if (!schede.some(([k]) => k === stato.scheda)) stato.scheda = "campo";
   const corpo = el("div", { role: "tabpanel", id: "pannello" });

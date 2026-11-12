@@ -7,7 +7,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
 
-from consigliere import fonti, pagine, verifica
+from consigliere import fonti, pagine, riassunto, verifica
 from consigliere.archivio import Archivio, ArchivioDanneggiato, campi_mancanti, controlla_id
 from consigliere.controllo import controlla_formazione
 from consigliere.listone import ListoneNonValido, abbina, leggi_xlsx, verifica_rosa
@@ -58,7 +58,18 @@ def crea_server(base: Path, porta: int = 8765, avvia=avvia_terminale, scaricator
             leghe.append(lega | {"mancanti": campi_mancanti(lega), "avvisi_rosa": avvisi})
         return {"avviso_accettato": archivio.avviso_accettato(),
                 "listone": {"numero": len(l["giocatori"]), "importato_il": l["importato_il"]} if l else None,
-                "ia": carica_ia(), "modelli": archivio.modelli(), "leghe": leghe}
+                "ia": carica_ia(), "modelli": archivio.modelli(), "leghe": leghe,
+                "riassunto": riassunto.stato(base, datetime.now().astimezone())}
+
+    def imposta_riassunto(corpo):
+        indirizzo = corpo.get("condiviso")
+        try:
+            indirizzo = riassunto.controlla_indirizzo(indirizzo) if indirizzo else None
+        except ValueError as e:
+            raise Errore(400, str(e))
+        with blocco:
+            riassunto.salva_config(base, riassunto.carica_config(base) | {"condiviso": indirizzo})
+        return riassunto.stato(base, datetime.now().astimezone())
 
     def nuova_ricerca(corpo):
         with blocco:
@@ -83,7 +94,12 @@ def crea_server(base: Path, porta: int = 8765, avvia=avvia_terminale, scaricator
                 raise Errore(409, "Scegli lo stile: punti sicuri o più rischio.")
             if ricerca_in_corso(base, lega["id"]):
                 raise Errore(409, "C'è già una ricerca in corso per questa lega.")
-            cartella = crea_ricerca(base, lega, g, ia, corpo["stile"], datetime.now().astimezone())
+            ora = datetime.now().astimezone()
+            try:  # il riassunto non deve mai bloccare una ricerca: senza, l'IA legge le fonti da sola
+                r = riassunto.per_ricerca(base, g, ora)
+            except (OSError, ValueError, KeyError, TypeError):
+                r = None
+            cartella = crea_ricerca(base, lega, g, ia, corpo["stile"], ora, riassunto=r)
             try:
                 avvia(_script(cartella), sys.platform)
             except (OSError, RuntimeError) as e:
@@ -317,6 +333,8 @@ def crea_server(base: Path, porta: int = 8765, avvia=avvia_terminale, scaricator
                         raise Errore(400, "Per caricare una pagina a mano indica nell'indirizzo ?stagione=AAAA-AA&giornata=N "
                                           "(il corpo deve essere l'HTML); per scaricarla invia JSON con stagione e giornata.")
                     return fonte_voti(None, dati, query)
+                case "PUT", ["riassunto"]:
+                    return imposta_riassunto(self._corpo_json())
                 case "POST", ["fonti", "listone"]:
                     return fonte_listone(self._corpo(MAX_PAGINA) or None)
                 case "GET", ["verifica", lega_id, stagione, giornata]:

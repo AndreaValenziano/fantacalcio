@@ -16,7 +16,7 @@ class TestSkill(unittest.TestCase):
         self.assertTrue(self.t.startswith("---\nname: "))
         self.assertIn("\ndescription: ", self.t.split("---")[1])
         for testo in ("leghe.fantacalcio.it", "apileague.fantacalcio.it", "/probabili-formazioni-serie-a",
-                      "Scarica", "comando_controllo", "FATTO", "confidenza", "fonti_non_lette"):
+                      "Scarica", "comando_controllo", "FATTO", "confidenza", "fonti_non_lette", "riassunto.json"):
             self.assertIn(testo, self.t)
 
     def test_skill_guida_la_scelta_del_modulo(self):
