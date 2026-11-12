@@ -1,6 +1,6 @@
 # Consigliere di formazione Fantacalcio — design
 
-**Data:** 9 novembre 2026 · **Stato:** approvato da Andrea il 9 novembre 2026
+**Data:** 9 novembre 2026 · **Stato:** approvato da Andrea il 9 novembre 2026 · **Aggiornato:** 12 novembre 2026, aggiunto il riassunto giornaliero con il modello locale
 
 Nel documento, *(tua scelta)* indica ciò che ha deciso Andrea e *(scelta di Claude)* ciò che ho deciso io e che può essere cambiato.
 
@@ -18,6 +18,7 @@ Il progetto FantaLab 1.2 contiene già regole, metodo e calcoli a giornata finit
 4. Spiegare le scelte: motivo per ogni giocatore, esclusi, dubbi, fonti e ora del controllo. *(tua scelta)*
 5. Funzionare su Windows e Mac con un'interfaccia grafica, avviando con un pulsante la ricerca in un terminale e riportando poi i risultati nell'interfaccia. *(tua scelta)*
 6. Funzionare con diverse IA, anche locali, senza chiavi API: lo strumento lancia il programma a riga di comando dell'IA scelta. *(tua scelta)*
+7. Spendere meno token: una routine giornaliera legge le fonti, compresa fantacalcio.it, e il modello locale sul PC-server (Ollama, raggiungibile via Tailscale) ne fa un riassunto per giocatore. Quando si preme il pulsante, l'IA parte da quel riassunto; se manca, legge le fonti da sola come prima. *(tua scelta, 12 novembre 2026)*
 
 ## Non obiettivi
 
@@ -46,9 +47,11 @@ Il **listone** con i ruoli Classic non viene letto in automatico: la persona lo 
 
 *(Aggiornato: il listone può anche venire letto dal sito, su pulsante, oltre che dall'xlsx caricato a mano; vedi `2026-11-09-verifica-giornata-design.md`.)*
 
-Si legge solo quando qualcuno preme il pulsante, e solo le pagine necessarie.
+Si legge in due momenti, e sempre solo le pagine necessarie:
+- **una volta al giorno**, dalla routine del riassunto, anche senza che nessuno prema il pulsante *(tua scelta, 12 novembre 2026: sostituisce la regola precedente "solo quando qualcuno preme il pulsante")*;
+- **quando si preme il pulsante**, solo se il riassunto del giorno manca o per controllare i giocatori che il riassunto non copre.
 
-I [termini d'uso di Fantacalcio](https://www.fantacalcio.it/termini-e-condizioni) vietano l'accesso automatico alle pagine senza autorizzazione scritta, e prevedono sanzioni fino alla cancellazione di account e leghe in cui avvengono violazioni. Leggere le pagine pubbliche resta quindi un **rischio accettato da Andrea**: non accedere alle leghe lo riduce, ma non lo elimina. Anche i suoi fratelli devono poterlo valutare per i propri account: al primo avvio lo strumento mostra questo avviso e chiede una conferma esplicita. *(scelta di Claude)*
+I [termini d'uso di Fantacalcio](https://www.fantacalcio.it/termini-e-condizioni) vietano l'accesso automatico alle pagine senza autorizzazione scritta, e prevedono sanzioni fino alla cancellazione di account e leghe in cui avvengono violazioni. Leggere le pagine pubbliche resta quindi un **rischio accettato da Andrea**: non accedere alle leghe lo riduce, ma non lo elimina. La routine giornaliera lo aumenta, perché la lettura avviene ogni giorno e in automatico. Per contenerlo gira su un solo computer per tutti, è spenta finché Andrea non la attiva sul PC-server, e l'avviso lo dice. Anche i suoi fratelli devono poterlo valutare per i propri account: al primo avvio lo strumento mostra questo avviso e chiede una conferma esplicita. *(scelta di Claude)*
 
 ## Come funziona
 
@@ -77,12 +80,13 @@ Le bozze mostrano un caso solo. Il risultato si adatta alla lega: il capitano co
 - **Skill `SKILL.md`:** nel formato comune delle Agent Skills, contiene metodo, criteri, elenco delle fonti e formato del risultato. È l'unica parte da mantenere per tutte le IA.
 - **Collegamenti alle IA:** una tabella con il comando per ogni programma (Gemini CLI, Claude Code, Codex, OpenCode con Ollama), modificabile senza toccare il codice.
 - **Controllo finale:** codice che verifica la proposta contro le regole della lega.
+- **Riassunto giornaliero:** script Python avviato ogni giorno dal sistema (launchd su Mac, Utilità di pianificazione su Windows). Scarica le pagine e le passa al modello locale, che restituisce le schede dei giocatori. Vedi la sezione sotto.
 
 ### Una ricerca, passo per passo
 
-1. La persona preme il pulsante. Il programmino crea la cartella della ricerca con rosa, regole, stile, data e ora.
+1. La persona preme il pulsante. Il programmino crea la cartella della ricerca con rosa, regole, stile, data e ora. Se esiste un riassunto valido e recente, lo copia nella cartella come `riassunto.json`.
 2. Apre un terminale nativo con il comando dell'IA scelta, che riceve la skill e la cartella.
-3. L'IA cerca le partite della giornata, compila una scheda per i giocatori della rosa e per i candidati alla migliore assoluta, poi propone le formazioni.
+3. L'IA cerca le partite della giornata, compila una scheda per i giocatori della rosa e per i candidati alla migliore assoluta, poi propone le formazioni. Con `riassunto.json` parte dalle sue schede e non rilegge le pagine già riassunte: cerca sul web solo i giocatori che il riassunto non copre o segna come dubbi. Senza riassunto legge le fonti da sola.
 4. Scrive il risultato in un file JSON con un formato stabilito.
 5. Il controllo finale lo verifica. L'IA lo esegue dentro la stessa sessione, così non perde la ricerca già fatta, e corregge gli errori al massimo due volte. Il programmino lo ripete comunque prima di mostrare il risultato: se fallisce, mostra l'errore senza formazione. *(scelta di Claude)*
 6. La pagina, che controlla periodicamente la cartella, mostra il risultato.
@@ -90,6 +94,32 @@ Le bozze mostrano un caso solo. Il risultato si adatta alla lega: il capitano co
 **Scheda giocatore** (idea presa da fantabot): disponibilità, titolarità, forma, rigori e piazzati, avversario, riassunto, link letti e confidenza, dove zero significa "non ho trovato nulla", non "giocatore medio".
 
 **Quanto cercare:** niente ricerca su tutti i 500 giocatori. La ricerca parte dalle partite della giornata e si concentra su rosa e candidati, così funziona anche con IA più lente. *(scelta di Claude)*
+
+### Riassunto giornaliero
+
+**Perché:** la parte più costosa di una ricerca è leggere le fonti (la pagina delle probabili supera da sola i 148.000 caratteri). Un modello locale legge quelle pagine gratis e consegna all'IA solo le schede, che sono molto più corte.
+
+**Chi fa cosa:**
+- **Python** scarica le pagine con la libreria standard, toglie l'HTML e divide il testo per partita. Il modello locale non naviga: riceve solo testo.
+- **Il modello locale** (Ollama sul PC-server, oggi `gpt-oss:20b`) estrae da ogni pezzo le schede: nome, squadra, disponibilità, titolarità, riassunto, link e la frase della fonte da cui viene ogni dato. Estrae soltanto e non deduce. *(scelta di Claude)*
+- **Python** controlla il risultato: nomi abbinati al listone, valori ammessi, link solo `http`/`https` e mai verso una lega. Le schede che non passano vengono scartate ed elencate. *(scelta di Claude)*
+
+**Un riassunto vale per tutte le leghe,** perché copre tutti i giocatori delle partite e non una rosa. Si salva con data e ora e non sovrascrive i precedenti.
+
+**Quando si usa:** alla pressione del pulsante, se è stato creato nelle ultime 24 ore e contiene almeno una scheda. Altrimenti si considera mancante. *(scelta di Claude)*
+
+**Se qualcosa va storto,** la ricerca funziona come prima:
+- PC-server spento o non raggiungibile, Tailscale assente, modello non installato: la routine non scrive il riassunto e annota il motivo in un registro;
+- pagina non leggibile o pezzo con JSON non valido: quel pezzo va in `fonti_non_lette` e il resto del riassunto si salva;
+- il riassunto manca o è vecchio: l'IA legge le fonti da sola, e la pagina del risultato dice "senza riassunto".
+
+**Un solo riassunto per tutti.** La routine gira una volta al giorno su un solo computer, il PC-server, e serve tutti e tre. *(tua scelta, 12 novembre 2026)* Il riassunto viene pubblicato nella rete Tailscale con `tailscale serve`: è in sola lettura, è visibile solo ai dispositivi della rete e non richiede altro codice. *(scelta di Claude)* Il PC-server usa Ollama in locale, quindi non dipende da altri computer accesi.
+
+**Sugli altri computer** non c'è nessuna routine e nessuna lettura giornaliera di fantacalcio.it. Alla pressione del pulsante lo strumento scarica l'ultimo riassunto condiviso, con un'attesa massima di 5 secondi, e lo ricontrolla con il proprio listone. Se è vecchio, vuoto o il server non risponde, l'IA legge le fonti da sola. *(scelta di Claude)*
+
+**Attivazione:** spenta di default.
+- **Sul PC-server**, dalla pagina "Le mie leghe" si scelgono modello e ora, poi si attiva. Ora predefinita: le 9 del mattino. Serve il listone caricato anche lì. *(scelta di Claude)*
+- **Sugli altri computer** si inserisce soltanto l'indirizzo del riassunto condiviso, ad esempio `https://andrea-pc.<rete>.ts.net/ultimo.json`.
 
 ### Regole di una lega
 
@@ -143,10 +173,14 @@ Nessuno di questi punti è stato provato. La pianificazione deve iniziare da una
 5. **Modelli locali:** vanno provati su un modello preciso. Non si promette che funzionino tutti; un modello locale può non avere una ricerca web, ed è per questo che la skill elenca le pagine da leggere.
 6. **Termini degli altri siti:** vanno controllati prima di inserirli nell'elenco delle fonti.
 7. **Regole non certe della lega F1 e dello Switch:** capitano e Switch della F1 non si vedono negli screenshot, l'elenco dei moduli F1 potrebbe continuare oltre il 3-6-1, e va chiarito quanti Switch ammette la lega dei pensionati.
+8. **Lettura senza IA:** la prova rapida ha letto le probabili con gli strumenti delle IA, non con Python. La pagina potrebbe rispondere in modo diverso o con un blocco a un programma semplice. Se è bloccata, la routine non la aggira: la segna in `fonti_non_lette`.
+9. **Qualità del modello locale:** non è stato provato su pagine vere di probabili. Va misurato su una giornata reale quante schede sono giuste, quante sbagliate e quante scartate, e quanti token risparmia Claude.
+10. **Pubblicazione con `tailscale serve`:** la sintassi per servire una cartella va provata sul PC-server, che usa Windows, e la rete deve avere MagicDNS e i certificati HTTPS attivi. Se non funziona, si ripiega su una porta HTTP raggiungibile solo dall'indirizzo Tailscale.
+11. **Contesto del modello:** Ollama usa di default un contesto corto, che taglierebbe il testo senza avvisare. Va impostato esplicitamente e verificato con un pezzo di pagina vero.
 
 ## Requisiti per chi lo usa
 
-Python 3 e almeno un programma IA installato e con accesso già fatto. Nella prima versione sono garantiti **Claude su Mac** (Andrea) e **Gemini su Windows** (i fratelli). *(tua scelta)* Le altre IA restano in tabella, anche quelle locali, ma senza garanzia: un modello locale non blocca l'uscita. *(scelta di Claude)* Serve una guida passo per passo adatta a chi non usa il terminale, perché i fratelli non devono scrivere comandi. *(scelta di Claude: nessun pacchetto installabile nella prima versione, si può aggiungere se Python risulta un ostacolo)*
+Python 3 e almeno un programma IA installato e con accesso già fatto. Nella prima versione sono garantiti **Claude su Mac** (Andrea) e **Gemini su Windows** (i fratelli). *(tua scelta)* Le altre IA restano in tabella, anche quelle locali, ma senza garanzia: un modello locale non blocca l'uscita. *(scelta di Claude)* Il riassunto giornaliero è facoltativo. Il PC-server ha bisogno di Python, dello strumento con il listone, di Ollama e di Tailscale con HTTPS attivo nella rete. Chi lo usa da un altro computer ha bisogno solo di Tailscale, collegato allo stesso account. Serve una guida passo per passo adatta a chi non usa il terminale, perché i fratelli non devono scrivere comandi. *(scelta di Claude: nessun pacchetto installabile nella prima versione, si può aggiungere se Python risulta un ostacolo)*
 
 ## Quando è finito
 
@@ -154,6 +188,7 @@ Python 3 e almeno un programma IA installato e con accesso già fatto. Nella pri
 - Riaprendo lo strumento, lega e rosa sono ancora lì.
 - Il controllo finale ha test su moduli, ruoli, rosa, doppioni, panchina, capitano e Switch, con le regole di tutte e tre le leghe.
 - Una prova conferma che durante una ricerca non viene contattato alcun indirizzo di `leghe.fantacalcio.it` o `apileague.fantacalcio.it`, per quanto osservabile dai log dell'IA.
+- Su una giornata vera, la stessa ricerca fatta con il riassunto e senza produce due formazioni valide, e con il riassunto Claude usa meno token. A PC-server spento la ricerca funziona ugualmente, senza riassunto.
 
 ## Lasciato a chi costruisce
 
